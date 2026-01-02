@@ -1,51 +1,52 @@
 
 import { NetworkSegment, NetworkType, ProjectStatus, NetworkPoint, PointType, Project } from './types';
 
-// دالة مساعدة لتوليد شبكة مياه (Grid-like)
+// ألوان الحالة مطابقة للصورة المرفقة
+export const STATUS_COLORS = {
+  [ProjectStatus.COMPLETED]: '#22c55e', // أخضر (Executed)
+  [ProjectStatus.IN_PROGRESS]: '#f59e0b', // أصفر/برتقالي (In Progress)
+  [ProjectStatus.PENDING]: '#ef4444',     // أحمر (Not Executed)
+};
+
 const generateWaterNetwork = (projectId: string, startX: number, startY: number, count: number): { segments: NetworkSegment[], points: NetworkPoint[] } => {
   const segments: NetworkSegment[] = [];
   const points: NetworkPoint[] = [];
-  const spacing = 200;
+  const spacing = 150;
 
   for (let i = 0; i < count; i++) {
-    const isHorizontal = i < count / 2;
-    const row = isHorizontal ? i : Math.floor((i - count / 2) / 2);
-    const col = isHorizontal ? 0 : (i % 2);
-    
-    const sX = startX + (isHorizontal ? 0 : col * spacing * 2);
-    const sY = startY + (isHorizontal ? i * spacing : 0);
-    const eX = sX + (isHorizontal ? spacing * 4 : 0);
-    const eY = sY + (isHorizontal ? 0 : spacing * 4);
+    const isHorizontal = i % 2 === 0;
+    const sX = startX + (isHorizontal ? 0 : (i/2) * spacing);
+    const sY = startY + (isHorizontal ? (i/2) * spacing : 0);
+    const eX = sX + (isHorizontal ? spacing * 2 : 0);
+    const eY = sY + (isHorizontal ? 0 : spacing * 2);
 
-    const status = i % 3 === 0 ? ProjectStatus.COMPLETED : i % 3 === 1 ? ProjectStatus.IN_PROGRESS : ProjectStatus.PENDING;
+    const status = i % 4 === 0 ? ProjectStatus.COMPLETED : i % 4 === 1 ? ProjectStatus.IN_PROGRESS : ProjectStatus.PENDING;
 
     segments.push({
       id: `${projectId}-W-${i + 1}`,
-      name: `خط مياه فرعي ${i + 1}`,
+      name: `خط مياه رئيسي ${i + 1}`,
       type: NetworkType.WATER,
       status: status,
-      length: spacing * 4,
+      length: spacing * 2,
       startNode: { x: sX, y: sY },
       endNode: { x: eX, y: eY },
-      completionPercentage: status === ProjectStatus.COMPLETED ? 100 : status === ProjectStatus.IN_PROGRESS ? 40 : 0,
-      contractor: i % 2 === 0 ? 'المقاولون العرب' : 'أوراسكوم'
+      completionPercentage: status === ProjectStatus.COMPLETED ? 100 : status === ProjectStatus.IN_PROGRESS ? 45 : 0,
+      contractor: 'شركة النيل العامة'
     });
 
-    // إضافة محابس عند البدايات
-    if (i % 4 === 0) {
+    if (i % 3 === 0) {
       points.push({
         id: `${projectId}-V-${i}`,
-        name: `محبس V-${i+1}`,
+        name: `محبس بوابه ${i+1}`,
         type: PointType.VALVE,
         status: status,
         location: { x: sX, y: sY }
       });
     }
-    // إضافة حنفيات حريق
-    if (i % 7 === 0) {
+    if (i % 5 === 0) {
       points.push({
         id: `${projectId}-FH-${i}`,
-        name: `حنفية حريق FH-${i+1}`,
+        name: `حنفية حريق ${i+1}`,
         type: PointType.FIRE_HYDRANT,
         status: status,
         location: { x: eX, y: eY }
@@ -55,102 +56,94 @@ const generateWaterNetwork = (projectId: string, startX: number, startY: number,
   return { segments, points };
 };
 
-// دالة مساعدة لتوليد شبكة صرف (Tree-like)
 const generateSewageNetwork = (projectId: string, startX: number, startY: number, count: number): { segments: NetworkSegment[], points: NetworkPoint[] } => {
   const segments: NetworkSegment[] = [];
   const points: NetworkPoint[] = [];
-  const segLength = 150;
+  const segLength = 120;
 
   for (let i = 0; i < count; i++) {
-    const sX = startX + (i * 50);
+    const sX = startX + (i * 20);
     const sY = startY + (i * segLength);
-    const eX = sX;
+    const eX = sX + 20;
     const eY = sY + segLength;
 
-    const status = i < count / 2 ? ProjectStatus.COMPLETED : ProjectStatus.IN_PROGRESS;
+    const status = i % 3 === 0 ? ProjectStatus.COMPLETED : ProjectStatus.PENDING;
 
     segments.push({
       id: `${projectId}-S-${i + 1}`,
-      name: `مجمع انحدار ${i + 1}`,
+      name: `خط انحدار ${i + 1}`,
       type: NetworkType.SEWAGE,
       status: status,
       length: segLength,
       startNode: { x: sX, y: sY },
       endNode: { x: eX, y: eY },
-      completionPercentage: status === ProjectStatus.COMPLETED ? 100 : 65,
-      contractor: 'إيجيكو للمقاولات'
+      completionPercentage: status === ProjectStatus.COMPLETED ? 100 : 0,
+      contractor: 'المقاولون العرب'
     });
 
-    // إضافة مناهل عند كل وصلة
     points.push({
       id: `${projectId}-MH-${i}`,
-      name: `منهل MH-${i+1}`,
+      name: `منهل خرساني ${i+1}`,
       type: PointType.MANHOLE,
       status: status,
       location: { x: sX, y: sY }
     });
+
+    if (i % 4 === 0) {
+      points.push({
+        id: `${projectId}-IC-${i}`,
+        name: `غرفة تفتيش ${i+1}`,
+        type: PointType.INSPECTION_CHAMBER,
+        status: status,
+        location: { x: sX + 15, y: sY + 30 }
+      });
+    }
   }
   return { segments, points };
 };
 
-// توليد المشاريع الأربعة
-const project1Data = { 
-  w: generateWaterNetwork('CAI', 638000, 3324000, 20), 
-  s: generateSewageNetwork('CAI', 639000, 3324000, 15) 
-};
-const project2Data = { 
-  w: generateWaterNetwork('ALM', 450000, 3410000, 20), 
-  s: generateSewageNetwork('ALM', 451000, 3410000, 15) 
-};
-const project3Data = { 
-  w: generateWaterNetwork('ASY', 550000, 3010000, 20), 
-  s: generateSewageNetwork('ASY', 551000, 3010000, 15) 
-};
-const project4Data = { 
-  w: generateWaterNetwork('SUEZ', 720000, 3280000, 20), 
-  s: generateSewageNetwork('SUEZ', 721000, 3280000, 15) 
-};
-
 export const MOCK_PROJECTS: Project[] = [
   {
-    id: 'PRJ-001',
-    name: 'مشروع تطوير شرق القاهرة',
-    locationName: 'القاهرة الجديدة (UTM 37N)',
-    lastUpdated: '2024-05-20',
-    segments: [...project1Data.w.segments, ...project1Data.s.segments],
-    points: [...project1Data.w.points, ...project1Data.s.points]
+    id: 'PRJ-CAI-24',
+    name: 'تطوير شبكة القاهرة الجديدة',
+    locationName: 'القاهرة (UTM 36N)',
+    lastUpdated: '2024-10-01',
+    segments: [...generateWaterNetwork('CAI', 638000, 3324000, 15).segments, ...generateSewageNetwork('CAI', 638500, 3324000, 10).segments],
+    points: [...generateWaterNetwork('CAI', 638000, 3324000, 15).points, ...generateSewageNetwork('CAI', 638500, 3324000, 10).points]
   },
   {
-    id: 'PRJ-002',
-    name: 'مشروع مدينة العلمين الجديدة',
-    locationName: 'الساحل الشمالي (UTM 35N)',
-    lastUpdated: '2024-06-01',
-    segments: [...project2Data.w.segments, ...project2Data.s.segments],
-    points: [...project2Data.w.points, ...project2Data.s.points]
+    id: 'PRJ-ALX-24',
+    name: 'توسعة محطة السيوف',
+    locationName: 'الإسكندرية (UTM 35N)',
+    lastUpdated: '2024-11-15',
+    segments: generateWaterNetwork('ALX', 450000, 3450000, 25).segments,
+    points: generateWaterNetwork('ALX', 450000, 3450000, 25).points
   },
   {
-    id: 'PRJ-003',
-    name: 'تطوير قرى حياة كريمة - أسيوط',
-    locationName: 'أسيوط (UTM 36N)',
-    lastUpdated: '2024-05-28',
-    segments: [...project3Data.w.segments, ...project3Data.s.segments],
-    points: [...project3Data.w.points, ...project3Data.s.points]
+    id: 'PRJ-DEL-24',
+    name: 'إحلال شبكات صرف طنطا',
+    locationName: 'الغربية (UTM 36N)',
+    lastUpdated: '2024-09-20',
+    segments: generateSewageNetwork('DEL', 350000, 3300000, 20).segments,
+    points: generateSewageNetwork('DEL', 350000, 3300000, 20).points
   },
   {
-    id: 'PRJ-004',
-    name: 'المنطقة الصناعية - السويس',
-    locationName: 'محور قناة السويس (UTM 36N)',
-    lastUpdated: '2024-06-05',
-    segments: [...project4Data.w.segments, ...project4Data.s.segments],
-    points: [...project4Data.w.points, ...project4Data.s.points]
+    id: 'PRJ-ASW-24',
+    name: 'مشروع مياه قري أسوان',
+    locationName: 'أسوان (UTM 36N)',
+    lastUpdated: '2024-12-05',
+    segments: generateWaterNetwork('ASW', 700000, 2700000, 18).segments,
+    points: generateWaterNetwork('ASW', 700000, 2700000, 18).points
+  },
+  {
+    id: 'PRJ-PSD-24',
+    name: 'البنية التحتية لمنطقة القناة',
+    locationName: 'بورسعيد (UTM 36N)',
+    lastUpdated: '2024-08-10',
+    segments: [...generateWaterNetwork('PSD', 600000, 3450000, 12).segments, ...generateSewageNetwork('PSD', 600500, 3450000, 12).segments],
+    points: [...generateWaterNetwork('PSD', 600000, 3450000, 12).points, ...generateSewageNetwork('PSD', 600500, 3450000, 12).points]
   }
 ];
-
-export const STATUS_COLORS = {
-  [ProjectStatus.COMPLETED]: '#10b981',
-  [ProjectStatus.IN_PROGRESS]: '#f59e0b',
-  [ProjectStatus.PENDING]: '#94a3b8',
-};
 
 export const POINT_LABELS: Record<PointType, string> = {
   [PointType.MANHOLE]: 'منهل',
