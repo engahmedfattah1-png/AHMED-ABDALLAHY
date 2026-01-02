@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [filterType, setFilterType] = useState<NetworkType | 'ALL'>('ALL');
   const [managementSelection, setManagementSelection] = useState<{type: 'SEGMENT' | 'POINT', id: string} | undefined>(undefined);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('infra_visited'));
   
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
 
@@ -42,7 +43,6 @@ const App: React.FC = () => {
     return { segments, points };
   }, [activeProject, filterType]);
 
-  const [isStandalone, setIsStandalone] = useState(false);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [auditIssues, setAuditIssues] = useState<AuditIssue[]>([]);
   const [isAiAuditing, setIsAiAuditing] = useState(false);
@@ -51,11 +51,6 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('infra_projects_v7', JSON.stringify(projects));
   }, [projects]);
-
-  useEffect(() => {
-    const standalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-    setIsStandalone(standalone);
-  }, []);
 
   const addLog = (message: string, type: 'UPDATE' | 'CREATE' | 'SYSTEM' | 'AUDIT' = 'UPDATE') => {
     const newLog: AuditEntry = {
@@ -113,86 +108,96 @@ const App: React.FC = () => {
     updateActiveProjectData(activeProject.segments, updatedPoints);
   };
 
-  const copyUrlToClipboard = () => {
-    navigator.clipboard.writeText(window.location.href);
-    alert('تم نسخ الرابط! أرسله عبر الواتساب وافتحه في متصفح Safari');
+  const closeWelcome = () => {
+    localStorage.setItem('infra_visited', 'true');
+    setShowWelcome(false);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12 font-sans overflow-x-hidden" dir="rtl">
       
-      {/* Share Modal / iPhone Guide */}
+      {/* Welcome Onboarding */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-xl">
+           <div className="bg-white rounded-[48px] w-full max-w-xl p-10 text-center shadow-2xl animate-in zoom-in-95">
+              <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/40 rotate-3">
+                 <i className="fas fa-drafting-compass text-white text-3xl"></i>
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 mb-4">أهلاً بك في InfraTrack Pro</h2>
+              <p className="text-sm text-slate-500 font-bold leading-relaxed mb-8">
+                نظامك المتكامل لإدارة ومتابعة تنفيذ شبكات المياه والصرف الصحي ميدانياً. 
+                استخدم الخريطة المترية لمراقبة التقدم، وقم بتحديث الحالات لحظياً من موقع العمل.
+              </p>
+              <div className="grid grid-cols-2 gap-4 mb-10">
+                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <i className="fas fa-map-marked-alt text-blue-500 mb-2"></i>
+                    <p className="text-[10px] font-black">خريطة UTM دقيقة</p>
+                 </div>
+                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <i className="fas fa-robot text-indigo-500 mb-2"></i>
+                    <p className="text-[10px] font-black">تدقيق ذكاء اصطناعي</p>
+                 </div>
+              </div>
+              <button onClick={closeWelcome} className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-sm shadow-xl hover:bg-blue-600 transition-all">
+                 ابدأ العمل الآن
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
       {showShareModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md" onClick={() => setShowShareModal(false)}></div>
-          <div className="bg-white rounded-[40px] w-full max-w-lg p-8 relative shadow-2xl animate-in zoom-in-95">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-md" onClick={() => setShowShareModal(false)}>
+          <div className="bg-white rounded-[40px] w-full max-w-lg p-8 relative shadow-2xl" onClick={e => e.stopPropagation()}>
              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                   <i className="fas fa-mobile-alt text-2xl"></i>
-                </div>
-                <h3 className="text-xl font-black text-slate-800">تثبيت InfraTrack</h3>
-                <p className="text-xs text-slate-500 font-bold mt-2">حوّل هذا الرابط إلى تطبيق حقيقي على هاتفك</p>
+                <i className="fas fa-mobile-alt text-4xl text-blue-600 mb-4"></i>
+                <h3 className="text-xl font-black text-slate-800">تثبيت التطبيق على الأيفون</h3>
              </div>
-
-             <div className="space-y-4 mb-8">
-                <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                   <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-black shrink-0 text-xs">1</div>
-                   <p className="text-[11px] font-bold text-slate-600 leading-relaxed">افتح الرابط في <span className="text-blue-600 font-black">Safari</span> على الأيفون.</p>
+             <div className="space-y-4 mb-8 text-right">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4">
+                   <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">1</span>
+                   <p className="text-xs font-bold text-slate-600">افتح الرابط في Safari.</p>
                 </div>
-                <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                   <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-black shrink-0 text-xs">2</div>
-                   <p className="text-[11px] font-bold text-slate-600 leading-relaxed">اضغط أيقونة **المشاركة** <i className="fas fa-share-square text-blue-500 mx-1"></i> (المربع والسهم).</p>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4">
+                   <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">2</span>
+                   <p className="text-xs font-bold text-slate-600">اضغط أيقونة المشاركة <i className="fas fa-share-square mx-1"></i>.</p>
                 </div>
-                <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                   <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-black shrink-0 text-xs">3</div>
-                   <p className="text-[11px] font-bold text-slate-600 leading-relaxed">اختر **إضافة إلى الشاشة الرئيسية** (Add to Home Screen).</p>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4">
+                   <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">3</span>
+                   <p className="text-xs font-bold text-slate-600">اختر "إضافة إلى الشاشة الرئيسية".</p>
                 </div>
              </div>
-
-             <div className="flex flex-col gap-3">
-                <button onClick={copyUrlToClipboard} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-500/20 active:scale-95 transition-transform">
-                   <i className="fas fa-copy ml-2"></i> نسخ الرابط للإرسال
-                </button>
-                <button onClick={() => setShowShareModal(false)} className="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black text-sm active:scale-95 transition-transform">
-                   إغلاق
-                </button>
-             </div>
+             <button onClick={() => setShowShareModal(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black">إغلاق</button>
           </div>
         </div>
       )}
 
-      <header className="bg-slate-900 text-white shadow-2xl sticky top-0 z-50 border-b border-white/10 backdrop-blur-md bg-slate-900/90">
+      <header className="bg-slate-900 text-white shadow-2xl sticky top-0 z-50 border-b border-white/10 backdrop-blur-md bg-slate-900/95">
         <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-6 w-full md:w-auto">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/20"><i className="fas fa-layer-group text-xl"></i></div>
+              <div className="bg-blue-600 p-2 rounded-xl"><i className="fas fa-layer-group text-xl"></i></div>
               <h1 className="text-xl font-black tracking-tight">InfraTrack Pro</h1>
             </div>
-            <div className="flex-1 md:flex-none">
-              <select 
-                value={activeProjectId}
-                onChange={(e) => setActiveProjectId(e.target.value)}
-                className="w-full md:w-64 bg-slate-800 text-white border-2 border-slate-700 px-4 py-2.5 rounded-2xl text-xs font-black focus:border-blue-500 outline-none transition-all cursor-pointer shadow-inner"
-              >
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
+            <select 
+              value={activeProjectId}
+              onChange={(e) => setActiveProjectId(e.target.value)}
+              className="flex-1 md:w-64 bg-slate-800 text-white border-2 border-slate-700 px-4 py-2.5 rounded-2xl text-xs font-black focus:border-blue-500 outline-none"
+            >
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-            <div className="flex bg-slate-800/50 rounded-2xl p-1 border border-white/5">
-              <button onClick={() => setFilterType('ALL')} className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all ${filterType === 'ALL' ? 'bg-blue-600 shadow-lg text-white' : 'text-slate-400'}`}>الكل</button>
-              <button onClick={() => setFilterType(NetworkType.WATER)} className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all ${filterType === NetworkType.WATER ? 'bg-blue-600 shadow-lg text-white' : 'text-slate-400'}`}>مياه</button>
-              <button onClick={() => setFilterType(NetworkType.SEWAGE)} className={`px-4 py-2 rounded-xl text-[10px] font-bold transition-all ${filterType === NetworkType.SEWAGE ? 'bg-blue-600 shadow-lg text-white' : 'text-slate-400'}`}>صرف</button>
+            <div className="flex bg-slate-800/50 rounded-2xl p-1">
+              <button onClick={() => setFilterType('ALL')} className={`px-4 py-2 rounded-xl text-[10px] font-bold ${filterType === 'ALL' ? 'bg-blue-600' : 'text-slate-400'}`}>الكل</button>
+              <button onClick={() => setFilterType(NetworkType.WATER)} className={`px-4 py-2 rounded-xl text-[10px] font-bold ${filterType === NetworkType.WATER ? 'bg-blue-600' : 'text-slate-400'}`}>مياه</button>
+              <button onClick={() => setFilterType(NetworkType.SEWAGE)} className={`px-4 py-2 rounded-xl text-[10px] font-bold ${filterType === NetworkType.SEWAGE ? 'bg-blue-600' : 'text-slate-400'}`}>صرف</button>
             </div>
             <div className="flex gap-2">
-               <button onClick={() => setShowShareModal(true)} className="w-11 h-11 bg-white/5 hover:bg-blue-600 rounded-2xl flex items-center justify-center transition-all group border border-white/5" title="تثبيت التطبيق">
-                 <i className="fas fa-mobile-alt text-blue-400 group-hover:text-white"></i>
-               </button>
-               <button onClick={handleRunAudit} className="w-11 h-11 bg-white/5 hover:bg-blue-600 rounded-2xl flex items-center justify-center transition-all group border border-white/5" title="تدقيق هندسي">
-                 <i className="fas fa-user-shield text-blue-400 group-hover:text-white"></i>
-               </button>
+               <button onClick={() => setShowShareModal(true)} className="w-11 h-11 bg-white/5 hover:bg-blue-600 rounded-2xl flex items-center justify-center transition-all"><i className="fas fa-mobile-alt text-blue-400"></i></button>
+               <button onClick={handleRunAudit} className="w-11 h-11 bg-white/5 hover:bg-blue-600 rounded-2xl flex items-center justify-center transition-all"><i className="fas fa-user-shield text-blue-400"></i></button>
             </div>
           </div>
         </div>
@@ -201,84 +206,39 @@ const App: React.FC = () => {
       <ValidationModal isOpen={isAuditOpen} onClose={() => setIsAuditOpen(false)} issues={auditIssues} isAiAnalyzing={isAiAuditing} aiComment={aiAuditComment} />
 
       <main className="container mx-auto px-4 mt-8">
-        <div className="mb-6 flex items-center justify-between">
-           <div className="flex items-center gap-2">
-             <i className="fas fa-map-marker-alt text-blue-500"></i>
-             <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">الموقع:</span>
-             <span className="text-[10px] font-bold text-slate-800">{activeProject.locationName}</span>
-           </div>
-           <div className="text-[9px] font-black text-slate-400 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 uppercase tracking-widest">
-             UTM ZONE 37N
-           </div>
-        </div>
-        
         <StatsPanel segments={filteredData.segments} points={filteredData.points} networkType={filterType} />
 
         <div className="flex gap-1 mb-8 bg-white/50 backdrop-blur p-1 rounded-[24px] w-fit border border-white shadow-sm overflow-x-auto no-scrollbar max-w-full">
-          <button onClick={() => setActiveTab('OVERVIEW')} className={`whitespace-nowrap px-8 py-3 rounded-[18px] text-sm font-black transition-all ${activeTab === 'OVERVIEW' ? 'bg-white shadow-md text-blue-600' : 'text-slate-400'}`}>بيانات الشبكة</button>
-          <button onClick={() => setActiveTab('MAP')} className={`whitespace-nowrap px-8 py-3 rounded-[18px] text-sm font-black transition-all ${activeTab === 'MAP' ? 'bg-white shadow-md text-blue-600' : 'text-slate-400'}`}>خريطة الموقع</button>
-          <button onClick={() => { setActiveTab('MANAGE'); setManagementSelection(undefined); }} className={`whitespace-nowrap px-8 py-3 rounded-[18px] text-sm font-black transition-all ${activeTab === 'MANAGE' ? 'bg-white shadow-md text-blue-600' : 'text-slate-400'}`}>لوحة التحديث</button>
+          <button onClick={() => setActiveTab('OVERVIEW')} className={`whitespace-nowrap px-8 py-3 rounded-[18px] text-sm font-black transition-all ${activeTab === 'OVERVIEW' ? 'bg-white shadow-md text-blue-600' : 'text-slate-400'}`}>البيانات</button>
+          <button onClick={() => setActiveTab('MAP')} className={`whitespace-nowrap px-8 py-3 rounded-[18px] text-sm font-black transition-all ${activeTab === 'MAP' ? 'bg-white shadow-md text-blue-600' : 'text-slate-400'}`}>الخريطة</button>
+          <button onClick={() => { setActiveTab('MANAGE'); setManagementSelection(undefined); }} className={`whitespace-nowrap px-8 py-3 rounded-[18px] text-sm font-black transition-all ${activeTab === 'MANAGE' ? 'bg-white shadow-md text-blue-600' : 'text-slate-400'}`}>التحديثات</button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-9">
-            {activeTab === 'OVERVIEW' && (
-              <DataTable 
-                segments={filteredData.segments} 
-                points={filteredData.points} 
-                onSelect={(item) => setActiveTab('MAP')} 
-                onUpdateTrigger={(item, type) => { setManagementSelection({type, id: item.id}); setActiveTab('MANAGE'); }} 
-              />
-            )}
-            {activeTab === 'MAP' && (
-              <NetworkMap segments={activeProject.segments} points={activeProject.points} selectedType={filterType} onSegmentClick={()=>{}} onPointClick={()=>{}} />
-            )}
+            {activeTab === 'OVERVIEW' && <DataTable segments={filteredData.segments} points={filteredData.points} onSelect={() => setActiveTab('MAP')} onUpdateTrigger={(item, type) => { setManagementSelection({type, id: item.id}); setActiveTab('MANAGE'); }} />}
+            {activeTab === 'MAP' && <NetworkMap segments={activeProject.segments} points={activeProject.points} selectedType={filterType} onSegmentClick={()=>{}} onPointClick={()=>{}} />}
             {activeTab === 'MANAGE' && (
               <ManagementPanel 
-                segments={activeProject.segments} 
-                points={activeProject.points} 
-                onUpdateSegment={updateSegmentProgress}
-                onUpdatePoint={updatePointStatus}
+                segments={activeProject.segments} points={activeProject.points} 
+                onUpdateSegment={updateSegmentProgress} onUpdatePoint={updatePointStatus}
                 onAddSegment={(s) => updateActiveProjectData([...activeProject.segments, s], activeProject.points)}
                 onAddPoint={(p) => updateActiveProjectData(activeProject.segments, [...activeProject.points, p])}
                 onBulkImport={(s, p) => updateActiveProjectData([...activeProject.segments, ...s], [...activeProject.points, ...p])}
-                initialSelection={managementSelection}
-                currentFilterType={filterType}
+                initialSelection={managementSelection} currentFilterType={filterType}
               />
             )}
           </div>
           <div className="lg:col-span-3">
              <div className="bg-slate-900 rounded-[32px] p-6 text-white shadow-2xl lg:sticky lg:top-28">
-               <h4 className="text-[10px] font-black mb-6 uppercase text-slate-500 flex items-center gap-2 tracking-widest">
-                 <i className="fas fa-history text-blue-500"></i> سجل العمليات الميدانية
-               </h4>
+               <h4 className="text-[10px] font-black mb-6 uppercase text-slate-500 tracking-widest flex items-center gap-2"><i className="fas fa-history"></i> السجل الميداني</h4>
                <div className="space-y-4 max-h-[450px] overflow-y-auto custom-scrollbar">
                   {logs.length > 0 ? logs.map(log => (
-                    <div key={log.id} className="text-[10px] border-b border-white/5 pb-4 last:border-0">
+                    <div key={log.id} className="text-[10px] border-b border-white/5 pb-4">
                       <p className="text-slate-300 font-bold leading-relaxed">{log.message}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-[8px] text-slate-600 font-mono tracking-wider">{log.timestamp}</span>
-                        <div className="w-1 h-1 rounded-full bg-blue-600/50"></div>
-                        <span className="text-[8px] text-slate-600 font-black uppercase">{log.type}</span>
-                      </div>
+                      <span className="text-[8px] text-slate-600 mt-2 block">{log.timestamp}</span>
                     </div>
-                  )) : (
-                    <div className="text-center py-10">
-                      <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <i className="fas fa-terminal text-slate-700 text-xs"></i>
-                      </div>
-                      <p className="text-[10px] text-slate-500 italic font-bold">انتظار البيانات الميدانية...</p>
-                    </div>
-                  )}
-               </div>
-               <div className="mt-8 pt-6 border-t border-white/5">
-                  <div className="flex items-center justify-between text-[10px] font-black text-slate-500">
-                    <span>حالة النظام:</span>
-                    <span className="text-green-500 flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                      متصل (Online)
-                    </span>
-                  </div>
+                  )) : <p className="text-[10px] text-slate-500 italic text-center py-10">انتظار البيانات...</p>}
                </div>
             </div>
           </div>
