@@ -78,7 +78,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ segments, points, networkType }
             </div>
             <div className="flex items-center justify-end gap-2">
               <span className="text-[10px] font-bold text-slate-600">مخطط ({pendingPoints})</span>
-              <div className="w-2.5 h-2.5 rounded-full bg-slate-200"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-[#94a3b8]"></div>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { NetworkSegment, NetworkType, ProjectStatus, NetworkPoint, PointType, Pr
 export const STATUS_COLORS = {
   [ProjectStatus.COMPLETED]: '#22c55e', 
   [ProjectStatus.IN_PROGRESS]: '#f59e0b', 
-  [ProjectStatus.PENDING]: '#ef4444',     
+  [ProjectStatus.PENDING]: '#94a3b8',     
 };
 
 // --- Helper Functions for Geometry ---

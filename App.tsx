@@ -19,16 +19,17 @@ interface AuditEntry {
 }
 
 const App: React.FC = () => {
-  // تم تغيير المفتاح إلى v8 لفرض مسح البيانات القديمة وتحميل المشاريع الجديدة
-  const STORAGE_KEY = 'infra_projects_v8';
+  // تم تحديث المفتاح إلى v9 لحذف البيانات القديمة وبدء سجل نظيف
+  const STORAGE_KEY = 'infra_projects_v9';
 
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : MOCK_PROJECTS;
+      // إذا لم يكن هناك بيانات محفوظة، نبدأ بمصفوفة فارغة بدلاً من المشاريع الوهمية ليكون "حذف الكل" واقعياً
+      return saved ? JSON.parse(saved) : [];
     } catch (e) {
       console.error("Error loading projects", e);
-      return MOCK_PROJECTS;
+      return [];
     }
   });
   
@@ -119,17 +120,25 @@ const App: React.FC = () => {
   const handleDeleteProject = () => {
     if (!activeProject) return;
     
-    // استخدام confirm لضمان نية المستخدم
     if (window.confirm(`تنبيه هام!\n\nهل أنت متأكد تماماً من حذف مشروع "${activeProject.name}"؟\nسيتم فقد جميع البيانات المرتبطة به نهائياً.`)) {
       const projectToDeleteId = activeProject.id;
       const updatedProjects = projects.filter(p => p.id !== projectToDeleteId);
       
-      // Select the next available project ID before deleting to avoid undefined state glitches
       const nextProject = updatedProjects.length > 0 ? updatedProjects[0] : null;
       
       setProjects(updatedProjects);
       setActiveProjectId(nextProject ? nextProject.id : '');
       addLog(`تم حذف المشروع: ${activeProject.name}`, 'SYSTEM');
+    }
+  };
+
+  const handleDeleteAllProjects = () => {
+    if (window.confirm('تحذير شديد!\n\nسيتم حذف "جميع" المشاريع والبيانات المخزنة في النظام نهائياً.\nلا يمكن التراجع عن هذه الخطوة.\n\nهل أنت متأكد؟')) {
+      setProjects([]);
+      setActiveProjectId('');
+      setLogs([]);
+      localStorage.removeItem(STORAGE_KEY);
+      addLog('تم حذف جميع المشاريع من النظام', 'SYSTEM');
     }
   };
 
@@ -235,19 +244,31 @@ const App: React.FC = () => {
                 onChange={(e) => setActiveProjectId(e.target.value)}
                 className="flex-1 md:w-72 bg-slate-800/80 text-white border border-white/10 px-4 py-2.5 rounded-2xl text-[12px] font-black focus:border-blue-500 outline-none hover:bg-slate-800 transition-colors"
               >
+                {projects.length === 0 && <option value="">لا توجد مشاريع</option>}
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+              
               {projects.length > 0 && (
-                <button 
-                  onClick={handleDeleteProject}
-                  className="px-4 h-10 bg-red-500/10 hover:bg-red-600 text-red-500 hover:text-white rounded-2xl flex items-center justify-center gap-2 transition-all border border-red-500/20 group"
-                  title="حذف المشروع الحالي"
-                >
-                  <i className="fas fa-trash-alt"></i>
-                  <span className="text-[10px] font-black hidden md:inline">حذف</span>
-                </button>
+                <>
+                  <button 
+                    onClick={handleDeleteProject}
+                    className="px-4 h-10 bg-slate-700/50 hover:bg-red-500/20 text-slate-300 hover:text-red-400 rounded-2xl flex items-center justify-center gap-2 transition-all border border-white/5 group"
+                    title="حذف المشروع الحالي"
+                  >
+                    <i className="fas fa-trash-alt"></i>
+                  </button>
+                  
+                  <button 
+                    onClick={handleDeleteAllProjects}
+                    className="px-4 h-10 bg-red-600 hover:bg-red-700 text-white rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/20"
+                    title="حذف كل المشاريع"
+                  >
+                    <i className="fas fa-bomb"></i>
+                    <span className="text-[10px] font-black hidden lg:inline">حذف الكل</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -367,6 +388,9 @@ const App: React.FC = () => {
              <i className="fas fa-folder-open text-6xl text-slate-300 mb-6"></i>
              <h3 className="text-xl font-black text-slate-400">لا توجد مشاريع نشطة</h3>
              <p className="text-sm font-bold text-slate-400 mt-2">أنشئ مشروعاً جديداً للبدء</p>
+             <button onClick={() => setShowNewProjectModal(true)} className="mt-6 bg-blue-600 text-white px-8 py-3 rounded-2xl font-black text-xs hover:bg-blue-700 transition-all">
+                إنشاء مشروع
+             </button>
           </div>
         )}
       </main>

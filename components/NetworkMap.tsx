@@ -165,7 +165,7 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType,
           <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">مفتاح الخريطة</h4>
           <div className="space-y-2">
              <div className="flex items-center gap-3">
-               <div className="w-3 h-3 rounded-full bg-[#ef4444] shadow-sm ring-2 ring-white"></div>
+               <div className="w-3 h-3 rounded-full bg-[#94a3b8] shadow-sm ring-2 ring-white"></div>
                <span className="text-[10px] font-bold text-slate-600">غير منفذ</span>
              </div>
              <div className="flex items-center gap-3">
