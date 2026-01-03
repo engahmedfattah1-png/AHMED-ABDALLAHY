@@ -1,9 +1,15 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { NetworkSegment } from "../types";
 
 export const getProjectInsights = async (segments: NetworkSegment[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Safer API Key initialization
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey.length === 0) {
+    console.warn("Gemini API Key is missing in environment variables.");
+    return "خدمة التحليل الذكي غير متوفرة حالياً (مفتاح API غير مضبوط).";
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
   const dataSummary = segments.map(s => ({
     name: s.name,
@@ -28,9 +34,9 @@ export const getProjectInsights = async (segments: NetworkSegment[]) => {
         thinkingConfig: { thinkingBudget: 0 }
       }
     });
-    return response.text;
+    return response.text || "لم يتم استلام رد نصي من النموذج.";
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "عذراً، لم نتمكن من تحليل البيانات حالياً.";
+    return "عذراً، لم نتمكن من تحليل البيانات حالياً. يرجى المحاولة لاحقاً.";
   }
 };
