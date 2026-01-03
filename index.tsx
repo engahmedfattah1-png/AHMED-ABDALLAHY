@@ -1,12 +1,10 @@
-
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-// Fix for typo in service worker registration (original line 71)
+// Fix for typo in service worker registration
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // navigator.worker.register corrected to navigator.serviceWorker.register
     navigator.serviceWorker.register('./sw.js')
       .then(() => console.log('Service Worker Registered'))
       .catch(err => console.log('SW failed', err));
@@ -14,13 +12,12 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
 }
 
 /**
- * Dynamically injects the global styles, fonts, and scripts that were 
- * previously in the HTML template to avoid "HTML-in-TSX" syntax errors.
+ * Dynamically injects the global styles, fonts, and scripts.
  */
 const initializeEnvironment = () => {
   if (typeof document === 'undefined') return;
 
-  // Set document metadata - CHANGED TO ENGLISH/LTR
+  // Set document metadata
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
 
@@ -37,8 +34,7 @@ const initializeEnvironment = () => {
     { tag: 'link', rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css' },
     { tag: 'link', rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap' },
     { tag: 'link', rel: 'stylesheet', href: '/index.css' },
-    { tag: 'script', src: 'https://cdn.tailwindcss.com' },
-    { tag: 'script', src: 'https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js' } // Added proj4 for UTM conversion
+    { tag: 'script', src: 'https://cdn.tailwindcss.com' }
   ];
 
   assets.forEach(asset => {
@@ -52,7 +48,7 @@ const initializeEnvironment = () => {
     }
   });
 
-  // Check for local file protocol warning (original line 67)
+  // Check for local file protocol warning
   if (window.location.protocol === 'file:') {
     const warning = document.createElement('div');
     warning.id = 'file-warning';

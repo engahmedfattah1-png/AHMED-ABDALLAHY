@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import shp from 'shpjs';
-import JSZip from 'jszip';
+import proj4 from 'proj4';
 import { NetworkSegment, NetworkPoint, NetworkType, ProjectStatus, PointType } from '../types';
 import { runEngineeringAudit, AuditIssue } from '../services/engineeringService';
 
@@ -14,7 +13,6 @@ interface NewProjectModalProps {
 const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) => {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  // Allow 'MIXED' as a state, though underlying data is strictly Water/Sewage
   const [projectType, setProjectType] = useState<NetworkType | 'MIXED'>(NetworkType.WATER);
   const [importType, setImportType] = useState<'NONE' | 'EXCEL' | 'CIVIL3D' | 'SHAPEFILE' | 'KMZ'>('NONE');
   
@@ -51,7 +49,20 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
      setAuditResults({ issues, score });
   };
 
-  // --- Helper: Fuzzy Get Value ---
+  // --- Enhanced Fuzzy Matching (Consistent with ImportPanel) ---
+  const COL_ALIASES = {
+    startX: ['StartLon', 'Start Longitude', 'StartX', 'X1', 'Lon1', 'Start_Lon', 'Start Easting', 'Start_E', 'S_X', 'X_Start', 'East_S', 'X Start'],
+    startY: ['StartLat', 'Start Latitude', 'StartY', 'Y1', 'Lat1', 'Start_Lat', 'Start Northing', 'Start_N', 'S_Y', 'Y_Start', 'North_S', 'Y Start'],
+    endX: ['EndLon', 'End Longitude', 'EndX', 'X2', 'Lon2', 'End_Lon', 'End Easting', 'End_E', 'E_X', 'X_End', 'East_E', 'X End'],
+    endY: ['EndLat', 'End Latitude', 'EndY', 'Y2', 'Lat2', 'End_Lat', 'End Northing', 'End_N', 'E_Y', 'Y_End', 'North_E', 'Y End'],
+    pointX: ['Lon', 'Longitude', 'X', 'Easting', 'E', 'X_Coord', 'East', 'CoordinateX'],
+    pointY: ['Lat', 'Latitude', 'Y', 'Northing', 'N', 'Y_Coord', 'North', 'CoordinateY'],
+    type: ['Type', 'Network', 'Service', 'Class', 'Category', 'Material', 'Layer', 'Utility', 'System'],
+    name: ['Name', 'ID', 'Segment Name', 'Pipe Name', 'Manhole Name', 'Node Name', 'Label', 'Code', 'Tag'],
+    length: ['Length', 'Len', 'Distance', 'L', 'Dist'],
+    contractor: ['Contractor', 'Company', 'Executed By', 'Subcontractor']
+  };
+
   const getFuzzyValue = (row: any, candidates: string[]): any => {
     const rowKeys = Object.keys(row);
     const normalizedMap: Record<string, string> = {};
@@ -62,16 +73,14 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
     for (const candidate of candidates) {
         const normCandidate = candidate.toLowerCase().replace(/[^a-z0-9]/g, '');
         const actualKey = normalizedMap[normCandidate];
-        if (actualKey && row[actualKey] !== undefined && row[actualKey] !== null && row[actualKey] !== '') {
+        if (actualKey && row[actualKey] !== undefined && row[actualKey] !== null && String(row[actualKey]).trim() !== '') {
             return row[actualKey];
         }
     }
     return undefined;
   };
 
-  /**
-   * STRICT Type Detection Logic with MIXED support
-   */
+  // --- Type Detection ---
   const detectPointType = (rawType: any, projectNetworkType: NetworkType | 'MIXED'): PointType => {
       const val = String(rawType || "").toUpperCase();
       
@@ -79,7 +88,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
           if (val.includes('INSPECTION') || val.includes('CHAMBER') || val.includes('تفتيش')) return PointType.INSPECTION_CHAMBER;
           if (val.includes('TRAP') || val.includes('OIL') || val.includes('مصيدة') || val.includes('زيوت')) return PointType.OIL_TRAP;
           if (val.includes('SEWAGE HOUSE') || val.includes('SEWAGE CONN') || val.includes('صرف') || val.includes('منزلية صرف')) return PointType.SEWAGE_HOUSE_CONNECTION;
-          if (val.includes('MANHOLE') || val.includes('MAN') || val.includes('منهل') || val.includes('بالوعة')) return PointType.MANHOLE;
+          if (val.includes('MANHOLE') || val.includes('MAN') || val.includes('منهل') || val.includes('بالوعة') || val.includes('MH')) return PointType.MANHOLE;
           return null;
       };
 
@@ -91,7 +100,6 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
           if (val.includes('AIR') || val.includes('هواء')) return PointType.AIR_VALVE;
           if (val.includes('WASH') || val.includes('غسيل')) return PointType.WASH_VALVE;
           if (val.includes('FIRE') || val.includes('HYDRANT') || val.includes('حريق')) return PointType.FIRE_HYDRANT;
-          // Enhanced detection for Water House Connections including generic terms
           if (val.includes('WATER HOUSE') || val.includes('WATER CONN') || val.includes('HOUSE') || val.includes('CONN') || val.includes('H.C') || val.includes('HC') || val.includes('مياه') || val.includes('منزلية') || val.includes('منزليه') || val.includes('وصلة') || val.includes('وصله')) return PointType.WATER_HOUSE_CONNECTION;
           if (val.includes('VALVE') || val.includes('VLV') || val.includes('محبس')) return PointType.VALVE;
           return null;
@@ -100,8 +108,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
       if (projectNetworkType === NetworkType.SEWAGE) {
           const s = checkSewage();
           if (s) return s;
-          // Fallback for generic terms in strict Sewage mode
-          if (val.includes('HOUSE') || val.includes('CONN') || val.includes('HC') || val.includes('H.C')) return PointType.SEWAGE_HOUSE_CONNECTION;
+          if (val.includes('HOUSE') || val.includes('CONN')) return PointType.SEWAGE_HOUSE_CONNECTION;
           return PointType.MANHOLE;
       }
 
@@ -109,15 +116,14 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
           return checkWater() || PointType.VALVE;
       }
 
-      // MIXED MODE
+      // MIXED MODE - Priority Check
       if (projectNetworkType === 'MIXED') {
           const s = checkSewage();
           if (s) return s;
           const w = checkWater();
           if (w) return w;
-          // Fallback based on simple string match if explicit type check failed
           if (val.includes('MH') || val.includes('M.H')) return PointType.MANHOLE;
-          return PointType.VALVE; // Default fallback for mixed
+          return PointType.VALVE; 
       }
       
       return PointType.MANHOLE;
@@ -133,13 +139,12 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
     return 0;
   };
 
-  // --- UTM Conversion Helper ---
   const processCoordinates = (x: number, y: number): { x: number, y: number } => {
-    if ((x > 180 || y > 90) && (window as any).proj4) {
+    if ((x > 180 || y > 90)) {
       try {
         const utm37n = "+proj=utm +zone=37 +ellps=WGS84 +datum=WGS84 +units=m +no_defs";
         const wgs84 = "+proj=longlat +datum=WGS84 +no_defs";
-        const converted = (window as any).proj4(utm37n, wgs84, [x, y]);
+        const converted = proj4(utm37n, wgs84, [x, y]);
         return { x: converted[0], y: converted[1] };
       } catch (e) {
         console.warn("Conversion failed", e);
@@ -167,7 +172,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
       let newSegments: NetworkSegment[] = [];
       let newPoints: NetworkPoint[] = [];
 
-      // 1. Tabular Data (Excel / CSV / HTML)
+      // Tabular Data (Excel / CSV / HTML)
       if (extension === 'xlsx' || extension === 'csv' || extension === 'html' || extension === 'htm') {
           let rows: any[] = [];
           if (extension === 'html' || extension === 'htm') {
@@ -182,34 +187,33 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
           
           if (target === 'SEGMENTS') {
                 newSegments = rows.map((r, idx) => {
-                    const startX = parseFloatSafe(getFuzzyValue(r, ['StartLon', 'Start Longitude', 'StartX', 'X1', 'Lon1', 'Start_Lon', 'Start Lon']));
-                    const startY = parseFloatSafe(getFuzzyValue(r, ['StartLat', 'Start Latitude', 'StartY', 'Y1', 'Lat1', 'Start_Lat', 'Start Lat']));
-                    const endX = parseFloatSafe(getFuzzyValue(r, ['EndLon', 'End Longitude', 'EndX', 'X2', 'Lon2', 'End_Lon', 'End Lon']));
-                    const endY = parseFloatSafe(getFuzzyValue(r, ['EndLat', 'End Latitude', 'EndY', 'Y2', 'Lat2', 'End_Lat', 'End Lat']));
+                    const startX = parseFloatSafe(getFuzzyValue(r, COL_ALIASES.startX));
+                    const startY = parseFloatSafe(getFuzzyValue(r, COL_ALIASES.startY));
+                    const endX = parseFloatSafe(getFuzzyValue(r, COL_ALIASES.endX));
+                    const endY = parseFloatSafe(getFuzzyValue(r, COL_ALIASES.endY));
                     
                     const start = processCoordinates(startX, startY);
                     const end = processCoordinates(endX, endY);
                     
-                    let len = parseFloatSafe(getFuzzyValue(r, ['Length', 'Len', 'Distance']));
+                    let len = parseFloatSafe(getFuzzyValue(r, COL_ALIASES.length));
                     if (len === 0 && start.x !== 0 && end.x !== 0) {
                         len = calculateDistance(start, end);
                     }
-                    const nameVal = getFuzzyValue(r, ['Name', 'Segment Name', 'Pipe Name']) || `Pipe ${idx + 1}`;
-                    const contractorVal = getFuzzyValue(r, ['Contractor', 'Company']) || 'Unknown';
-                    const rawType = getFuzzyValue(r, ['Type', 'Network', 'Service']) || '';
+                    const nameVal = getFuzzyValue(r, COL_ALIASES.name) || `Pipe ${idx + 1}`;
+                    const contractorVal = getFuzzyValue(r, COL_ALIASES.contractor) || 'Unknown';
+                    const rawType = getFuzzyValue(r, COL_ALIASES.type) || '';
 
-                    // Determine Segment Type
+                    // Determine Segment Type (Mixed Mode Handling)
                     let segType = NetworkType.WATER;
-                    if (projectType === NetworkType.SEWAGE) segType = NetworkType.SEWAGE;
-                    else if (projectType === NetworkType.WATER) segType = NetworkType.WATER;
-                    else {
-                         // Mixed Mode Detection
+                    if (projectType === 'MIXED') {
                          const combinedStr = (String(rawType) + " " + String(nameVal)).toUpperCase();
-                         if (combinedStr.includes('SEWAGE') || combinedStr.includes('DRAIN') || combinedStr.includes('GRAVITY') || combinedStr.includes('SANITARY') || combinedStr.includes('صرف')) {
+                         if (combinedStr.includes('SEWAGE') || combinedStr.includes('DRAIN') || combinedStr.includes('GRAVITY') || combinedStr.includes('SANITARY') || combinedStr.includes('WASTEWATER') || combinedStr.includes('صرف')) {
                              segType = NetworkType.SEWAGE;
                          } else {
                              segType = NetworkType.WATER;
                          }
+                    } else {
+                        segType = projectType;
                     }
                     
                     return {
@@ -227,14 +231,13 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
                 setImportedSegments(newSegments);
           } else {
                 newPoints = rows.map((r, idx) => {
-                    const x = parseFloatSafe(getFuzzyValue(r, ['Lon', 'Longitude', 'X', 'Easting']));
-                    const y = parseFloatSafe(getFuzzyValue(r, ['Lat', 'Latitude', 'Y', 'Northing']));
+                    const x = parseFloatSafe(getFuzzyValue(r, COL_ALIASES.pointX));
+                    const y = parseFloatSafe(getFuzzyValue(r, COL_ALIASES.pointY));
                     
                     if (x !== 0 && y !== 0) {
-                        const nameVal = getFuzzyValue(r, ['Name', 'Point Name', 'Node Name']) || `Point ${idx + 1}`;
-                        const rawType = getFuzzyValue(r, ['Type', 'Point Type', 'Class', 'Category']);
+                        const nameVal = getFuzzyValue(r, COL_ALIASES.name) || `Point ${idx + 1}`;
+                        const rawType = getFuzzyValue(r, COL_ALIASES.type);
                         
-                        // Strict/Mixed Type Detection
                         const pType = detectPointType(rawType || nameVal, projectType); 
                         const pRaw = processCoordinates(x, y);
 
@@ -252,9 +255,8 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
           }
           finalizeImport(target, newSegments, newPoints);
           return;
-      } 
-      // Other formats implementation would follow similar logic...
-      
+      }
+      // ... Other formats logic ...
     } catch (err) {
       console.error(err);
       setStatusMsg(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: 'Error' }));
