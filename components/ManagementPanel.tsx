@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { NetworkType, ProjectStatus, PointType, NetworkSegment, NetworkPoint } from '../types';
-import { POINT_LABELS, STATUS_COLORS } from '../constants';
+import { POINT_LABELS, STATUS_COLORS, WATER_ONLY_POINTS, SEWAGE_ONLY_POINTS } from '../constants';
 import ImportPanel from './ImportPanel';
 
 interface ManagementPanelProps {
@@ -61,6 +61,19 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
       }
     }
   }, [initialSelection, segments, points]);
+
+  // Effect to reset/set default point type when network type changes
+  useEffect(() => {
+    if (newType === NetworkType.WATER) {
+      if (!WATER_ONLY_POINTS.includes(newPointType)) {
+        setNewPointType(PointType.VALVE);
+      }
+    } else if (newType === NetworkType.SEWAGE) {
+      if (!SEWAGE_ONLY_POINTS.includes(newPointType)) {
+        setNewPointType(PointType.MANHOLE);
+      }
+    }
+  }, [newType]);
 
   const handleCreateNew = () => {
     if (!newName) return;
@@ -137,6 +150,8 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
       setPasswordError(true);
     }
   };
+
+  const filteredPointTypes = newType === NetworkType.WATER ? WATER_ONLY_POINTS : SEWAGE_ONLY_POINTS;
 
   return (
     <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 relative">
@@ -303,18 +318,28 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
 
              <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold" placeholder="Item Name / Code" />
 
+             {/* Network Type Selector - Important for filtering */}
+             <div>
+               <label className="text-[10px] font-black text-slate-400 block mb-1">Network Type</label>
+               <select value={newType} onChange={(e) => setNewType(e.target.value as NetworkType)} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold">
+                 <option value={NetworkType.WATER}>Water Network</option>
+                 <option value={NetworkType.SEWAGE}>Sewage Network</option>
+               </select>
+             </div>
+
              {subMode === 'SEGMENT' ? (
-               <div className="grid grid-cols-2 gap-3">
+               <div className="grid grid-cols-1 gap-3">
                  <input type="number" value={newLength} onChange={(e) => setNewLength(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold" placeholder="Length (m)" />
-                 <select value={newType} onChange={(e) => setNewType(e.target.value as NetworkType)} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold">
-                   <option value={NetworkType.WATER}>Water</option>
-                   <option value={NetworkType.SEWAGE}>Sewage</option>
-                 </select>
                </div>
              ) : (
-               <select value={newPointType} onChange={(e) => setNewPointType(e.target.value as PointType)} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold">
-                  {Object.entries(POINT_LABELS).map(([val, label]) => <option key={val} value={val}>{label}</option>)}
-               </select>
+               <div>
+                 <label className="text-[10px] font-black text-slate-400 block mb-1">Point Type</label>
+                 <select value={newPointType} onChange={(e) => setNewPointType(e.target.value as PointType)} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold">
+                    {filteredPointTypes.map(val => (
+                        <option key={val} value={val}>{POINT_LABELS[val]}</option>
+                    ))}
+                 </select>
+               </div>
              )}
 
              <button onClick={handleCreateNew} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black text-xs shadow-lg">Add to Network</button>

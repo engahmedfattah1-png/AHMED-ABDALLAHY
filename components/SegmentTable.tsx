@@ -15,7 +15,6 @@ type TabCategory = 'PIPES' | 'VALVES' | 'FITTINGS' | 'WATER_CONN' | 'MANHOLES' |
 const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpdateTrigger }) => {
   const [activeTab, setActiveTab] = useState<TabCategory>('PIPES');
 
-  // Reset tab to pipes when data changes significantly to avoid empty views
   useEffect(() => {
     setActiveTab('PIPES');
   }, [segments.length, points.length]);
@@ -143,7 +142,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
                   className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'SEWAGE_CONN' ? 'bg-orange-50 text-orange-600 ring-1 ring-orange-100' : 'text-slate-400 hover:text-orange-500'}`}
                 >
                   <i className="fas fa-network-wired"></i>
-                  Connections ({categorizedPoints.sewageConn.length})
+                  House Connections ({categorizedPoints.sewageConn.length})
                 </button>
              </>
           )}

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { NetworkSegment, NetworkType, NetworkPoint, PointType, ProjectStatus, Project } from './types';
-import { MOCK_PROJECTS } from './constants';
+import { MOCK_PROJECTS, WATER_ONLY_POINTS, SEWAGE_ONLY_POINTS } from './constants';
 import NetworkMap from './components/NetworkMap';
 import StatsPanel from './components/StatsPanel';
 import DataTable from './components/SegmentTable'; 
@@ -56,14 +56,28 @@ const App: React.FC = () => {
     projects.find(p => p.id === activeProjectId) || (projects.length > 0 ? projects[0] : undefined),
   [projects, activeProjectId]);
 
+  // Strict Filtering Logic to prevent mixing
   const filteredData = useMemo(() => {
     if (!activeProject) return { segments: [], points: [] };
+    
+    // Filter Segments (Straightforward via type property)
     const segments = activeProject.segments.filter(s => filterType === 'ALL' || s.type === filterType);
+    
+    // Filter Points (Strict check using constants)
     const points = activeProject.points.filter(p => {
       if (filterType === 'ALL') return true;
-      const isWaterPoint = [PointType.VALVE, PointType.FIRE_HYDRANT, PointType.WATER_HOUSE_CONNECTION].includes(p.type);
-      return filterType === NetworkType.WATER ? isWaterPoint : !isWaterPoint;
+      
+      if (filterType === NetworkType.WATER) {
+        return WATER_ONLY_POINTS.includes(p.type);
+      }
+      
+      if (filterType === NetworkType.SEWAGE) {
+        return SEWAGE_ONLY_POINTS.includes(p.type);
+      }
+      
+      return false;
     });
+    
     return { segments, points };
   }, [activeProject, filterType]);
 
@@ -71,10 +85,12 @@ const App: React.FC = () => {
     if (!activeProject || filterType !== 'ALL') return { water: null, sewage: null };
     
     const waterSegments = activeProject.segments.filter(s => s.type === NetworkType.WATER);
-    const waterPoints = activeProject.points.filter(p => [PointType.VALVE, PointType.FIRE_HYDRANT, PointType.WATER_HOUSE_CONNECTION].includes(p.type));
+    // Strict Water Points
+    const waterPoints = activeProject.points.filter(p => WATER_ONLY_POINTS.includes(p.type));
     
     const sewageSegments = activeProject.segments.filter(s => s.type === NetworkType.SEWAGE);
-    const sewagePoints = activeProject.points.filter(p => ![PointType.VALVE, PointType.FIRE_HYDRANT, PointType.WATER_HOUSE_CONNECTION].includes(p.type));
+    // Strict Sewage Points
+    const sewagePoints = activeProject.points.filter(p => SEWAGE_ONLY_POINTS.includes(p.type));
     
     return {
       water: { segments: waterSegments, points: waterPoints },
@@ -361,7 +377,8 @@ const App: React.FC = () => {
               <div className="xl:col-span-4 space-y-10">
                 <div id="management-section">
                   <ManagementPanel 
-                    segments={activeProject.segments || []} points={activeProject.points || []} 
+                    segments={filteredData.segments} 
+                    points={filteredData.points} 
                     onUpdateSegment={updateSegmentProgress} onUpdatePoint={updatePointStatus}
                     onAddSegment={(s) => activeProject && updateActiveProjectData([...activeProject.segments, s], activeProject.points)}
                     onAddPoint={(p) => activeProject && updateActiveProjectData(activeProject.segments, [...activeProject.points, p])}
