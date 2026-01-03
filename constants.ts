@@ -1,155 +1,280 @@
 
 import { NetworkSegment, NetworkType, ProjectStatus, NetworkPoint, PointType, Project } from './types';
 
-// ألوان الحالة مطابقة للصورة المرفقة
 export const STATUS_COLORS = {
-  [ProjectStatus.COMPLETED]: '#22c55e', // أخضر (Executed)
-  [ProjectStatus.IN_PROGRESS]: '#f59e0b', // أصفر/برتقالي (In Progress)
-  [ProjectStatus.PENDING]: '#ef4444',     // أحمر (Not Executed)
+  [ProjectStatus.COMPLETED]: '#22c55e', 
+  [ProjectStatus.IN_PROGRESS]: '#f59e0b', 
+  [ProjectStatus.PENDING]: '#ef4444',     
 };
 
-const generateWaterNetwork = (projectId: string, startX: number, startY: number, count: number): { segments: NetworkSegment[], points: NetworkPoint[] } => {
+// --- Helper Functions for Geometry ---
+// NOTE: Coordinates are now Lat/Lng (Decimal Degrees)
+// x = Longitude, y = Latitude
+
+const movePoint = (start: {x: number, y: number}, dxMeters: number, dyMeters: number) => {
+    // Approx: 1 deg lat ~= 111km, 1 deg lon ~= 111km * cos(lat)
+    const latChange = dyMeters / 111111;
+    const lonChange = dxMeters / (111111 * Math.cos(start.y * Math.PI / 180));
+    return { x: start.x + lonChange, y: start.y + latChange };
+}
+
+// 1. مشروع المنار - جدة (Coordinates: ~21.61, 39.24)
+const createWaterLoop = (pid: string, startLat: number, startLon: number): { segments: NetworkSegment[], points: NetworkPoint[] } => {
   const segments: NetworkSegment[] = [];
   const points: NetworkPoint[] = [];
-  const spacing = 150;
+  
+  const p0 = { x: startLon, y: startLat };
+  const p1 = movePoint(p0, 400, 0); // East 400m
+  const p2 = movePoint(p1, 0, 400); // North 400m
+  const p3 = movePoint(p0, 0, 400); // North 400m (from start) -> TopLeft
+  // Wait, correct logic for p3 to close box is x=startLon, y=startLat+400m
+  
+  const nodes = [p0, p1, p2, p3]; // 0:BL, 1:BR, 2:TR, 3:TL
 
-  for (let i = 0; i < count; i++) {
-    const isHorizontal = i % 2 === 0;
-    const sX = startX + (isHorizontal ? 0 : (i/2) * spacing);
-    const sY = startY + (isHorizontal ? (i/2) * spacing : 0);
-    const eX = sX + (isHorizontal ? spacing * 2 : 0);
-    const eY = sY + (isHorizontal ? 0 : spacing * 2);
+  const lines = [
+    { s: 0, e: 1, name: 'خط رئيسي جنوبي 400 مم' },
+    { s: 1, e: 2, name: 'خط رئيسي شرقي 400 مم' },
+    { s: 2, e: 3, name: 'خط رئيسي شمالي 400 مم' },
+    { s: 3, e: 0, name: 'خط رئيسي غربي 400 مم' }
+  ];
 
-    const status = i % 4 === 0 ? ProjectStatus.COMPLETED : i % 4 === 1 ? ProjectStatus.IN_PROGRESS : ProjectStatus.PENDING;
-
+  lines.forEach((l, idx) => {
     segments.push({
-      id: `${projectId}-W-${i + 1}`,
-      name: `خط مياه رئيسي ${i + 1}`,
+      id: `${pid}-W-MAIN-${idx}`,
+      name: l.name,
       type: NetworkType.WATER,
-      status: status,
-      length: spacing * 2,
-      startNode: { x: sX, y: sY },
-      endNode: { x: eX, y: eY },
-      completionPercentage: status === ProjectStatus.COMPLETED ? 100 : status === ProjectStatus.IN_PROGRESS ? 45 : 0,
-      contractor: 'شركة النيل العامة'
+      status: ProjectStatus.COMPLETED,
+      length: 400,
+      startNode: nodes[l.s],
+      endNode: nodes[l.e],
+      completionPercentage: 100,
+      contractor: 'شركة المياه الوطنية'
     });
+    
+    points.push({
+      id: `${pid}-V-${idx}`,
+      name: `محبس قفل زاوية ${idx+1}`,
+      type: PointType.VALVE,
+      status: ProjectStatus.COMPLETED,
+      location: nodes[l.s]
+    });
+  });
 
-    if (i % 3 === 0) {
-      points.push({
-        id: `${projectId}-V-${i}`,
-        name: `محبس بوابه ${i+1}`,
-        type: PointType.VALVE,
-        status: status,
-        location: { x: sX, y: sY }
-      });
-    }
-    if (i % 5 === 0) {
-      points.push({
-        id: `${projectId}-FH-${i}`,
-        name: `حنفية حريق ${i+1}`,
-        type: PointType.FIRE_HYDRANT,
-        status: status,
-        location: { x: eX, y: eY }
-      });
-    }
-  }
+  // Midpoint connection
+  const midBottom = movePoint(p0, 200, 0);
+  const midTop = movePoint(p3, 200, 0);
+  
+  segments.push({
+    id: `${pid}-W-SUB-1`,
+    name: 'خط توزيع فرعي أوسط',
+    type: NetworkType.WATER,
+    status: ProjectStatus.IN_PROGRESS,
+    length: 400,
+    startNode: midBottom,
+    endNode: midTop,
+    completionPercentage: 60,
+    contractor: 'المقاولون العرب'
+  });
+
+  points.push({
+    id: `${pid}-FH-1`,
+    name: 'حنفية حريق وسطى',
+    type: PointType.FIRE_HYDRANT,
+    status: ProjectStatus.COMPLETED,
+    location: movePoint(midBottom, 0, 200)
+  });
+
   return { segments, points };
 };
 
-const generateSewageNetwork = (projectId: string, startX: number, startY: number, count: number): { segments: NetworkSegment[], points: NetworkPoint[] } => {
+const createSewageTree = (pid: string, startLat: number, startLon: number, direction: 'NORTH' | 'EAST'): { segments: NetworkSegment[], points: NetworkPoint[] } => {
   const segments: NetworkSegment[] = [];
   const points: NetworkPoint[] = [];
-  const segLength = 120;
+  const spacing = 60; 
 
-  for (let i = 0; i < count; i++) {
-    const sX = startX + (i * 20);
-    const sY = startY + (i * segLength);
-    const eX = sX + 20;
-    const eY = sY + segLength;
+  const trunkNodes = [];
+  for(let i=0; i<6; i++) {
+    trunkNodes.push(
+      direction === 'EAST' 
+      ? movePoint({x: startLon, y: startLat}, i * spacing, 0)
+      : movePoint({x: startLon, y: startLat}, 0, i * spacing)
+    );
+  }
 
-    const status = i % 3 === 0 ? ProjectStatus.COMPLETED : ProjectStatus.PENDING;
-
+  for(let i=0; i<trunkNodes.length - 1; i++) {
     segments.push({
-      id: `${projectId}-S-${i + 1}`,
-      name: `خط انحدار ${i + 1}`,
+      id: `${pid}-S-TRUNK-${i}`,
+      name: `خط انحدار رئيسي ${i+1}`,
       type: NetworkType.SEWAGE,
-      status: status,
-      length: segLength,
-      startNode: { x: sX, y: sY },
-      endNode: { x: eX, y: eY },
-      completionPercentage: status === ProjectStatus.COMPLETED ? 100 : 0,
-      contractor: 'المقاولون العرب'
+      status: ProjectStatus.COMPLETED,
+      length: spacing,
+      startNode: trunkNodes[i],
+      endNode: trunkNodes[i+1],
+      completionPercentage: 100,
+      contractor: 'شركة بن لادن'
     });
 
     points.push({
-      id: `${projectId}-MH-${i}`,
-      name: `منهل خرساني ${i+1}`,
+      id: `${pid}-MH-${i}`,
+      name: `منهل رئيسي ${i+1}`,
       type: PointType.MANHOLE,
-      status: status,
-      location: { x: sX, y: sY }
+      status: ProjectStatus.COMPLETED,
+      location: trunkNodes[i]
+    });
+  }
+  points.push({
+    id: `${pid}-MH-LAST`,
+    name: 'منهل تجميع نهائي',
+    type: PointType.MANHOLE,
+    status: ProjectStatus.COMPLETED,
+    location: trunkNodes[trunkNodes.length-1]
+  });
+
+  for(let i=1; i<4; i++) {
+    const startNode = trunkNodes[i];
+    // Branch moves away
+    const branchEnd = direction === 'EAST' 
+        ? movePoint(startNode, 0, 50) 
+        : movePoint(startNode, 50, 0);
+
+    segments.push({
+      id: `${pid}-S-LAT-${i}`,
+      name: `وصلة منزلية ${i}`,
+      type: NetworkType.SEWAGE,
+      status: ProjectStatus.IN_PROGRESS,
+      length: 50,
+      startNode: branchEnd,
+      endNode: startNode,
+      completionPercentage: 40,
+      contractor: 'مؤسسة الإنجاز'
     });
 
-    if (i % 4 === 0) {
-      points.push({
-        id: `${projectId}-IC-${i}`,
-        name: `غرفة تفتيش ${i+1}`,
-        type: PointType.INSPECTION_CHAMBER,
-        status: status,
-        location: { x: sX + 15, y: sY + 30 }
-      });
-    }
+    points.push({
+      id: `${pid}-IC-${i}`,
+      name: `غرفة تفتيش منزلية ${i}`,
+      type: PointType.INSPECTION_CHAMBER,
+      status: ProjectStatus.PENDING,
+      location: branchEnd
+    });
   }
+
   return { segments, points };
 };
 
+const createLogisticNetwork = (pid: string, startLat: number, startLon: number): { segments: NetworkSegment[], points: NetworkPoint[] } => {
+    const segments: NetworkSegment[] = [];
+    const points: NetworkPoint[] = [];
+    
+    for(let i=0; i<5; i++) {
+        const start = movePoint({x: startLon, y: startLat}, i*100, 0);
+        const end = movePoint(start, 100, 0); // short parallel lines? No, looks like series.
+        // Actually logistic grid usually parallel. Let's do horizontal lines stacked vertically.
+        
+        const lineStart = movePoint({x: startLon, y: startLat}, 0, i * 50);
+        const lineEnd = movePoint(lineStart, 300, 0);
+
+        segments.push({
+            id: `${pid}-W-${i}`,
+            name: `خط تغذية عنابر ${i+1}`,
+            type: NetworkType.WATER,
+            status: ProjectStatus.COMPLETED,
+            length: 300,
+            startNode: lineStart,
+            endNode: lineEnd,
+            completionPercentage: 100,
+            contractor: 'السيف للمقاولات'
+        });
+        
+        if(i % 2 === 0) {
+            points.push({
+                id: `${pid}-FH-${i}`,
+                name: `حنفية حريق صناعية ${i}`,
+                type: PointType.FIRE_HYDRANT,
+                status: ProjectStatus.COMPLETED,
+                location: lineStart
+            });
+        }
+        
+        // Sewage Offset
+        const sewStart = movePoint(lineStart, 0, -10);
+        const sewEnd = movePoint(lineEnd, 0, -10);
+
+        segments.push({
+            id: `${pid}-S-${i}`,
+            name: `خط صرف صناعي ${i+1}`,
+            type: NetworkType.SEWAGE,
+            status: i > 2 ? ProjectStatus.PENDING : ProjectStatus.IN_PROGRESS,
+            length: 300,
+            startNode: sewStart,
+            endNode: sewEnd,
+            completionPercentage: i > 2 ? 0 : 75,
+            contractor: 'السيف للمقاولات'
+        });
+
+        points.push({
+            id: `${pid}-MH-${i}`,
+            name: `منهل صرف ثقيل ${i}`,
+            type: PointType.MANHOLE,
+            status: i > 2 ? ProjectStatus.PENDING : ProjectStatus.COMPLETED,
+            location: sewStart
+        });
+    }
+
+    return { segments, points };
+}
+
+
+// --- DEFINING PROJECTS WITH REAL JEDDAH/TAIF COORDINATES ---
+
+// 1. Manar (Jeddah Al Manar District) ~ 21.603, 39.230
+const manarWater = createWaterLoop('MNR', 21.6030, 39.2300);
+const manarSewage = createSewageTree('MNR', 21.6040, 39.2310, 'EAST');
+
+const projectManar: Project = {
+  id: 'PRJ-JED-MNR',
+  name: 'مشروع المنار',
+  locationName: 'جدة - حي المنار',
+  lastUpdated: '2024-05-15',
+  segments: [...manarWater.segments, ...manarSewage.segments],
+  points: [...manarWater.points, ...manarSewage.points]
+};
+
+// 2. Logistic (Jeddah Industrial City South) ~ 21.430, 39.230
+const logisticNet = createLogisticNetwork('LOG', 21.4300, 39.2300);
+
+const projectLogistic: Project = {
+  id: 'PRJ-JED-LOG',
+  name: 'المشروع اللوجستي',
+  locationName: 'جدة - المدينة الصناعية',
+  lastUpdated: '2024-06-10',
+  segments: logisticNet.segments,
+  points: logisticNet.points
+};
+
+// 3. Abu Farea (Taif) ~ 21.270, 40.410
+const far3Sewage1 = createSewageTree('FR3-A', 21.2700, 40.4100, 'NORTH');
+const far3Sewage2 = createSewageTree('FR3-B', 21.2700, 40.4120, 'NORTH');
+
+const projectAbuFarea: Project = {
+  id: 'PRJ-TAIF-FR3',
+  name: 'مشروع أبو فارع',
+  locationName: 'الطائف - وادي أبو فارع',
+  lastUpdated: '2024-06-01',
+  segments: [...far3Sewage1.segments, ...far3Sewage2.segments],
+  points: [...far3Sewage1.points, ...far3Sewage2.points]
+};
+
 export const MOCK_PROJECTS: Project[] = [
-  {
-    id: 'PRJ-CAI-24',
-    name: 'تطوير شبكة القاهرة الجديدة',
-    locationName: 'القاهرة (UTM 36N)',
-    lastUpdated: '2024-10-01',
-    segments: [...generateWaterNetwork('CAI', 638000, 3324000, 15).segments, ...generateSewageNetwork('CAI', 638500, 3324000, 10).segments],
-    points: [...generateWaterNetwork('CAI', 638000, 3324000, 15).points, ...generateSewageNetwork('CAI', 638500, 3324000, 10).points]
-  },
-  {
-    id: 'PRJ-ALX-24',
-    name: 'توسعة محطة السيوف',
-    locationName: 'الإسكندرية (UTM 35N)',
-    lastUpdated: '2024-11-15',
-    segments: generateWaterNetwork('ALX', 450000, 3450000, 25).segments,
-    points: generateWaterNetwork('ALX', 450000, 3450000, 25).points
-  },
-  {
-    id: 'PRJ-DEL-24',
-    name: 'إحلال شبكات صرف طنطا',
-    locationName: 'الغربية (UTM 36N)',
-    lastUpdated: '2024-09-20',
-    segments: generateSewageNetwork('DEL', 350000, 3300000, 20).segments,
-    points: generateSewageNetwork('DEL', 350000, 3300000, 20).points
-  },
-  {
-    id: 'PRJ-ASW-24',
-    name: 'مشروع مياه قري أسوان',
-    locationName: 'أسوان (UTM 36N)',
-    lastUpdated: '2024-12-05',
-    segments: generateWaterNetwork('ASW', 700000, 2700000, 18).segments,
-    points: generateWaterNetwork('ASW', 700000, 2700000, 18).points
-  },
-  {
-    id: 'PRJ-PSD-24',
-    name: 'البنية التحتية لمنطقة القناة',
-    locationName: 'بورسعيد (UTM 36N)',
-    lastUpdated: '2024-08-10',
-    segments: [...generateWaterNetwork('PSD', 600000, 3450000, 12).segments, ...generateSewageNetwork('PSD', 600500, 3450000, 12).segments],
-    points: [...generateWaterNetwork('PSD', 600000, 3450000, 12).points, ...generateSewageNetwork('PSD', 600500, 3450000, 12).points]
-  }
+  projectManar,
+  projectLogistic,
+  projectAbuFarea
 ];
 
 export const POINT_LABELS: Record<PointType, string> = {
-  [PointType.MANHOLE]: 'منهل',
-  [PointType.SEWAGE_HOUSE_CONNECTION]: 'وصلة منزلية صرف',
+  [PointType.MANHOLE]: 'منهل صرف',
+  [PointType.SEWAGE_HOUSE_CONNECTION]: 'وصلة منزلية',
   [PointType.INSPECTION_CHAMBER]: 'غرفة تفتيش',
-  [PointType.VALVE]: 'محبس',
+  [PointType.VALVE]: 'محبس تحكم',
   [PointType.FIRE_HYDRANT]: 'حنفية حريق',
-  [PointType.WATER_HOUSE_CONNECTION]: 'وصلة منزلية مياه',
+  [PointType.WATER_HOUSE_CONNECTION]: 'عداد مياه',
 };
