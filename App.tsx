@@ -228,8 +228,8 @@ const App: React.FC = () => {
       {showWelcome && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-[#0f172a]/95 backdrop-blur-xl">
            <div className="bg-white rounded-[48px] w-full max-w-xl p-10 text-center shadow-2xl animate-in zoom-in-95">
-              <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/40 -rotate-3">
-                 <i className="fas fa-drafting-compass text-white text-3xl"></i>
+              <div className="w-40 h-auto bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/20 p-4">
+                 <img src="https://i.imgur.com/K5aE7Qk.png" alt="Maham Al-Mithali" className="w-full h-full object-contain" />
               </div>
               <h2 className="text-2xl font-black text-[#0f172a] mb-4">Welcome to InfraTrack Pro</h2>
               <p className="text-sm text-slate-500 font-bold leading-relaxed mb-8">
@@ -258,6 +258,11 @@ const App: React.FC = () => {
         <div className="container mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto">
             <div className="flex items-center gap-3">
+              <img 
+                src="https://i.imgur.com/K5aE7Qk.png" 
+                alt="Logo" 
+                className="h-12 w-auto bg-white/95 backdrop-blur rounded-xl p-1.5 shadow-lg object-contain"
+              />
               <div className="bg-blue-600 p-2.5 rounded-2xl cursor-pointer shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform" onClick={() => setShowNewProjectModal(true)} title="Add New Project">
                 <i className="fas fa-folder-plus text-xl text-white"></i>
               </div>

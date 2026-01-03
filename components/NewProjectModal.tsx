@@ -14,7 +14,8 @@ interface NewProjectModalProps {
 const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) => {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  const [projectType, setProjectType] = useState<NetworkType>(NetworkType.WATER);
+  // Allow 'MIXED' as a state, though underlying data is strictly Water/Sewage
+  const [projectType, setProjectType] = useState<NetworkType | 'MIXED'>(NetworkType.WATER);
   const [importType, setImportType] = useState<'NONE' | 'EXCEL' | 'CIVIL3D' | 'SHAPEFILE' | 'KMZ'>('NONE');
   
   const [importedSegments, setImportedSegments] = useState<NetworkSegment[]>([]);
@@ -28,7 +29,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
   const projectId = useMemo(() => {
     const year = new Date().getFullYear();
     const random = Math.floor(1000 + Math.random() * 9000);
-    const prefix = projectType === NetworkType.WATER ? 'W' : 'S';
+    const prefix = projectType === NetworkType.WATER ? 'W' : projectType === NetworkType.SEWAGE ? 'S' : 'M';
     return `PRJ-${prefix}-${year}-${random}`;
   }, [projectType]);
 
@@ -69,51 +70,49 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
   };
 
   /**
-   * STRICT Type Detection Logic
-   * Ensures that points imported into a Sewage project ARE strictly sewage types.
+   * STRICT Type Detection Logic with MIXED support
    */
-  const detectPointType = (rawType: any, projectNetworkType: NetworkType): PointType => {
+  const detectPointType = (rawType: any, projectNetworkType: NetworkType | 'MIXED'): PointType => {
       const val = String(rawType || "").toUpperCase();
       
-      // === STRICT SEWAGE LOGIC ===
-      if (projectNetworkType === NetworkType.SEWAGE) {
-          // Explicit Sewage types
+      const checkSewage = () => {
           if (val.includes('INSPECTION') || val.includes('CHAMBER') || val.includes('تفتيش')) return PointType.INSPECTION_CHAMBER;
           if (val.includes('TRAP') || val.includes('OIL') || val.includes('مصيدة') || val.includes('زيوت')) return PointType.OIL_TRAP;
-          
-          // House Connections
-          if (val.includes('HOUSE') || val.includes('CONN') || val.includes('وصلة') || val.includes('وصله') || val.includes('منزلية') || val.includes('منزليه')) {
-              return PointType.SEWAGE_HOUSE_CONNECTION;
-          }
+          if (val.includes('SEWAGE HOUSE') || val.includes('SEWAGE CONN') || val.includes('صرف') || val.includes('منزلية صرف')) return PointType.SEWAGE_HOUSE_CONNECTION;
+          if (val.includes('MANHOLE') || val.includes('MAN') || val.includes('منهل') || val.includes('بالوعة')) return PointType.MANHOLE;
+          return null;
+      };
 
-          // Fallback for Sewage: Everything else becomes a Manhole
-          // Even if the file says "Valve", we treat it as a Manhole/Node in Sewage to prevent pollution
-          return PointType.MANHOLE; 
-      }
-
-      // === STRICT WATER LOGIC ===
-      if (projectNetworkType === NetworkType.WATER) {
-          // Fittings
+      const checkWater = () => {
           if (val.includes('ELBOW') || val.includes('BEND') || val.includes('كوع')) return PointType.ELBOW;
           if (val.includes('TEE') || val.includes('مشترك') || val.includes('T-PIECE')) return PointType.TEE;
-          if (val.includes('SADDLE') || val.includes('CLAMP') || val.includes('STRAP') || val.includes('سرج') || val.includes('مفتاح ربط')) return PointType.SADDLE;
+          if (val.includes('SADDLE') || val.includes('CLAMP') || val.includes('STRAP') || val.includes('سرج')) return PointType.SADDLE;
           if (val.includes('REDUCER') || val.includes('MASLOOB') || val.includes('مسلوب')) return PointType.REDUCER;
-
-          // Specific Valves
           if (val.includes('AIR') || val.includes('هواء')) return PointType.AIR_VALVE;
           if (val.includes('WASH') || val.includes('غسيل')) return PointType.WASH_VALVE;
-          
-          // Fire Hydrants
-          if (val.includes('FIRE') || val.includes('HYDRANT') || val.includes('حريق') || val.includes('طفاية') || val.includes('طفايه')) return PointType.FIRE_HYDRANT;
+          if (val.includes('FIRE') || val.includes('HYDRANT') || val.includes('حريق')) return PointType.FIRE_HYDRANT;
+          if (val.includes('WATER HOUSE') || val.includes('WATER CONN') || val.includes('مياه') || val.includes('منزلية مياه')) return PointType.WATER_HOUSE_CONNECTION;
+          if (val.includes('VALVE') || val.includes('VLV') || val.includes('محبس')) return PointType.VALVE;
+          return null;
+      };
 
-          // House Connections
-          if (val.includes('HOUSE') || val.includes('CONN') || val.includes('وصلة') || val.includes('وصله') || val.includes('منزلية') || val.includes('منزليه')) {
-              return PointType.WATER_HOUSE_CONNECTION;
-          }
+      if (projectNetworkType === NetworkType.SEWAGE) {
+          return checkSewage() || PointType.MANHOLE;
+      }
 
-          // Fallback for Water: Everything else is a Valve (or generic node)
-          // Even if file says "Manhole", treat as Valve/Node in Water
-          return PointType.VALVE; 
+      if (projectNetworkType === NetworkType.WATER) {
+          return checkWater() || PointType.VALVE;
+      }
+
+      // MIXED MODE
+      if (projectNetworkType === 'MIXED') {
+          const s = checkSewage();
+          if (s) return s;
+          const w = checkWater();
+          if (w) return w;
+          // Fallback based on simple string match if explicit type check failed
+          if (val.includes('MH') || val.includes('M.H')) return PointType.MANHOLE;
+          return PointType.VALVE; // Default fallback for mixed
       }
       
       return PointType.MANHOLE;
@@ -144,11 +143,6 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
     }
     return { x, y };
   };
-
-  // ... (Parsing logic for various file types remains, ensuring detectPointType is used)
-
-  // --- Robust Parsing Logic (Abbreviated to focus on type strictness) ---
-  // Note: All parsing functions below (Excel, GeoJSON, etc.) assume detectPointType(val, projectType) is called
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, target: 'SEGMENTS' | 'POINTS' | 'BOTH') => {
     const file = e.target.files?.[0];
@@ -170,11 +164,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
 
       // 1. Tabular Data (Excel / CSV / HTML)
       if (extension === 'xlsx' || extension === 'csv' || extension === 'html' || extension === 'htm') {
-          // ... (Reading file logic same as before) ...
           let rows: any[] = [];
           if (extension === 'html' || extension === 'htm') {
              const text = await file.text();
-             rows = parseHTMLTable(text); // Assume defined
+             rows = parseHTMLTable(text); 
           } else {
              const data = await file.arrayBuffer();
              const workbook = XLSX.read(data, { type: 'array' });
@@ -198,11 +191,26 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
                     }
                     const nameVal = getFuzzyValue(r, ['Name', 'Segment Name', 'Pipe Name']) || `Pipe ${idx + 1}`;
                     const contractorVal = getFuzzyValue(r, ['Contractor', 'Company']) || 'Unknown';
+                    const rawType = getFuzzyValue(r, ['Type', 'Network', 'Service']) || '';
+
+                    // Determine Segment Type
+                    let segType = NetworkType.WATER;
+                    if (projectType === NetworkType.SEWAGE) segType = NetworkType.SEWAGE;
+                    else if (projectType === NetworkType.WATER) segType = NetworkType.WATER;
+                    else {
+                         // Mixed Mode Detection
+                         const combinedStr = (String(rawType) + " " + String(nameVal)).toUpperCase();
+                         if (combinedStr.includes('SEWAGE') || combinedStr.includes('DRAIN') || combinedStr.includes('GRAVITY') || combinedStr.includes('SANITARY') || combinedStr.includes('صرف')) {
+                             segType = NetworkType.SEWAGE;
+                         } else {
+                             segType = NetworkType.WATER;
+                         }
+                    }
                     
                     return {
                         id: `TAB-S-${idx}-${Date.now()}`,
                         name: String(nameVal),
-                        type: projectType, // STRICT TYPE ENFORCEMENT
+                        type: segType,
                         status: ProjectStatus.PENDING,
                         length: len,
                         completionPercentage: 0,
@@ -221,8 +229,8 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
                         const nameVal = getFuzzyValue(r, ['Name', 'Point Name', 'Node Name']) || `Point ${idx + 1}`;
                         const rawType = getFuzzyValue(r, ['Type', 'Point Type', 'Class', 'Category']);
                         
-                        // STRICT TYPE DETECTION
-                        const pType = detectPointType(rawType, projectType); 
+                        // Strict/Mixed Type Detection
+                        const pType = detectPointType(rawType || nameVal, projectType); 
                         const pRaw = processCoordinates(x, y);
 
                         return {
@@ -240,12 +248,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
           finalizeImport(target, newSegments, newPoints);
           return;
       } 
-      // ... (Other file types logic remains similar but must apply projectType strictness)
-      
-      // Fallback for simple demo of other types (Logic is repetitive, simplified here to use detectPointType correctly)
-      // Note: In real app, apply same strict logic to parseCivil3DFile, parseGeoJSONPoints, etc.
-      // Assuming reused parser functions are updated or logic is inlined. 
-      // Since we modified detectPointType above, all calls to it will now be strictly enforced.
+      // Other formats implementation would follow similar logic...
       
     } catch (err) {
       console.error(err);
@@ -253,9 +256,6 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
       setLoading(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: false }));
     }
   };
-
-  // Re-declare parsing helpers to fix scope if necessary, or assume they are available if defined outside
-  // For brevity in XML, assuming `parseHTMLTable` is defined above.
 
   const finalizeImport = (target: 'SEGMENTS' | 'POINTS' | 'BOTH', segs: NetworkSegment[], pts: NetworkPoint[]) => {
       const currentSegs = target === 'SEGMENTS' ? segs : importedSegments;
@@ -292,11 +292,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
     });
   };
 
-  // ... (handleDownloadTemplate remains same)
   const handleDownloadTemplate = (type: 'SEGMENTS' | 'POINTS') => {
     const data = type === 'SEGMENTS' 
-      ? [{ Name: "Line 1", StartLat: 2423087, StartLon: 510669, EndLat: 2423187, EndLon: 510769, Length: 150 }]
-      : [{ Name: "Manhole 1", Lat: 2423087, Lon: 510669, Type: "Manhole" }];
+      ? [{ Name: "Pipe 1", StartLat: 2423087, StartLon: 510669, EndLat: 2423187, EndLon: 510769, Length: 150, Type: "Water" }]
+      : [{ Name: "Valve 1", Lat: 2423087, Lon: 510669, Type: "Valve" }];
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -350,14 +349,26 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
 
           <div className="space-y-2">
              <label className="text-xs font-black text-slate-500 block">Network Type</label>
-             <div className="grid grid-cols-2 gap-4">
-               <div onClick={() => setProjectType(NetworkType.WATER)} className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${projectType === NetworkType.WATER ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100'}`}>
-                 <span className={`block text-xs font-black ${projectType === NetworkType.WATER ? 'text-blue-700' : 'text-slate-500'}`}>Water Network</span>
+             <div className="grid grid-cols-3 gap-3">
+               <div onClick={() => setProjectType(NetworkType.WATER)} className={`cursor-pointer p-3 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${projectType === NetworkType.WATER ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100'}`}>
+                 <i className={`fas fa-tint ${projectType === NetworkType.WATER ? 'text-blue-600' : 'text-slate-300'}`}></i>
+                 <span className={`block text-[10px] font-black ${projectType === NetworkType.WATER ? 'text-blue-700' : 'text-slate-500'}`}>Water Only</span>
                </div>
-               <div onClick={() => setProjectType(NetworkType.SEWAGE)} className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${projectType === NetworkType.SEWAGE ? 'bg-amber-50 border-amber-500' : 'bg-white border-slate-100'}`}>
-                 <span className={`block text-xs font-black ${projectType === NetworkType.SEWAGE ? 'text-amber-700' : 'text-slate-500'}`}>Sewage Network</span>
+               <div onClick={() => setProjectType(NetworkType.SEWAGE)} className={`cursor-pointer p-3 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${projectType === NetworkType.SEWAGE ? 'bg-amber-50 border-amber-500' : 'bg-white border-slate-100'}`}>
+                 <i className={`fas fa-toilet ${projectType === NetworkType.SEWAGE ? 'text-amber-600' : 'text-slate-300'}`}></i>
+                 <span className={`block text-[10px] font-black ${projectType === NetworkType.SEWAGE ? 'text-amber-700' : 'text-slate-500'}`}>Sewage Only</span>
+               </div>
+               <div onClick={() => setProjectType('MIXED')} className={`cursor-pointer p-3 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${projectType === 'MIXED' ? 'bg-purple-50 border-purple-500' : 'bg-white border-slate-100'}`}>
+                 <i className={`fas fa-layer-group ${projectType === 'MIXED' ? 'text-purple-600' : 'text-slate-300'}`}></i>
+                 <span className={`block text-[10px] font-black ${projectType === 'MIXED' ? 'text-purple-700' : 'text-slate-500'}`}>Combined</span>
                </div>
              </div>
+             {projectType === 'MIXED' && (
+                <p className="text-[9px] text-purple-600 font-bold mt-1 bg-purple-50 p-2 rounded-lg border border-purple-100">
+                   <i className="fas fa-info-circle mr-1"></i>
+                   File Import: Ensure an 'Network' or 'Type' column exists in your Excel file to distinguish between Water and Sewage elements.
+                </p>
+             )}
           </div>
 
           <div className="space-y-4 pt-4 border-t border-slate-100">
@@ -365,7 +376,6 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
             <div className="grid grid-cols-5 gap-3">
                <button type="button" onClick={() => setImportType('NONE')} className="p-3 rounded-2xl border-2 bg-slate-50 text-[10px] font-black">Manual</button>
                <button type="button" onClick={() => setImportType('EXCEL')} className="p-3 rounded-2xl border-2 bg-green-50 text-[10px] font-black text-green-700">Excel / HTML</button>
-               {/* Disabled other options for brevity in this specific fix, keeping existing UI structure */}
                <button type="button" disabled className="p-3 rounded-2xl border-2 bg-slate-50 text-[10px] font-black text-slate-300">Civil 3D</button>
                <button type="button" disabled className="p-3 rounded-2xl border-2 bg-slate-50 text-[10px] font-black text-slate-300">GIS (Zip)</button>
                <button type="button" disabled className="p-3 rounded-2xl border-2 bg-slate-50 text-[10px] font-black text-slate-300">KMZ</button>
