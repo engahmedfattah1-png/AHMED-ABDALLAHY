@@ -7,9 +7,10 @@ import { NetworkSegment, NetworkPoint, NetworkType, ProjectStatus, PointType } f
 
 interface ImportPanelProps {
   onImported: (segments: NetworkSegment[], points: NetworkPoint[]) => void;
+  defaultNetworkType?: NetworkType | 'ALL';
 }
 
-const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
+const ImportPanel: React.FC<ImportPanelProps> = ({ onImported, defaultNetworkType = 'ALL' }) => {
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
@@ -69,8 +70,16 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
       if (val.includes('INSPECTION') || val.includes('CHAMBER') || val.includes('تفتيش')) return PointType.INSPECTION_CHAMBER;
 
       // 6. House Connections
-      if (val.includes('HOUSE') || val.includes('CONN') || val.includes('وصلة') || val.includes('وصله') || val.includes('منزلية') || val.includes('منزليه')) {
-          return val.includes('WATER') ? PointType.WATER_HOUSE_CONNECTION : PointType.SEWAGE_HOUSE_CONNECTION;
+      if (val.includes('HOUSE') || val.includes('CONN') || val.includes('H.C') || val.includes('HC') || val.includes('وصلة') || val.includes('وصله') || val.includes('منزلية') || val.includes('منزليه')) {
+          if (val.includes('WATER') || val.includes('مياه')) return PointType.WATER_HOUSE_CONNECTION;
+          if (val.includes('SEWAGE') || val.includes('صرف') || val.includes('DRAIN') || val.includes('SANITARY')) return PointType.SEWAGE_HOUSE_CONNECTION;
+          
+          // Fallback based on defaultNetworkType
+          if (defaultNetworkType === NetworkType.WATER) return PointType.WATER_HOUSE_CONNECTION;
+          if (defaultNetworkType === NetworkType.SEWAGE) return PointType.SEWAGE_HOUSE_CONNECTION;
+          
+          // General default if ambiguous and no context
+          return PointType.WATER_HOUSE_CONNECTION;
       }
 
       // 7. Generic Manhole

@@ -151,7 +151,7 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType,
       hasData = true;
     });
 
-    // Render Points with custom shapes
+    // Render Points with specific Icons
     points.filter(p => {
       if (selectedType === 'ALL') return true;
       const isWaterPoint = [PointType.VALVE, PointType.FIRE_HYDRANT, PointType.WATER_HOUSE_CONNECTION, PointType.AIR_VALVE, PointType.WASH_VALVE, PointType.ELBOW, PointType.TEE, PointType.SADDLE, PointType.REDUCER].includes(p.type);
@@ -159,42 +159,93 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType,
     }).forEach(point => {
       const color = STATUS_COLORS[point.status];
       const latLng = [point.location.y, point.location.x];
-      
-      // Determine shape based on type
-      // Square: Manhole, Inspection Chamber, Oil Trap
-      const isSquare = [PointType.MANHOLE, PointType.INSPECTION_CHAMBER, PointType.OIL_TRAP].includes(point.type);
+      let marker;
 
-      if (isSquare) {
-          // Use DivIcon for Square
-          const icon = L.divIcon({
-              className: 'custom-square-marker',
-              html: `<div style="
-                  width: 14px; 
-                  height: 14px; 
-                  background-color: ${color}; 
-                  border: 2px solid white; 
-                  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-              "></div>`,
-              iconSize: [14, 14],
-              iconAnchor: [7, 7]
-          });
-          const marker = L.marker(latLng, { icon }).addTo(layerGroup);
-          marker.on('click', (e: any) => {
-              L.DomEvent.stopPropagation(e);
-              onPointClick(point);
-          });
-          marker.bindTooltip(point.name, { sticky: true, direction: 'top' });
-      } else {
-          // Circle for others
-          const marker = L.circleMarker(latLng, {
-              radius: 8,
+      // 1. Fittings (Small Dots)
+      const isFitting = [PointType.ELBOW, PointType.TEE, PointType.SADDLE, PointType.REDUCER].includes(point.type);
+      
+      if (isFitting) {
+          marker = L.circleMarker(latLng, {
+              radius: 5,
               fillColor: color,
               color: '#fff',
-              weight: 2,
-              opacity: 0.9,
-              fillOpacity: 0.9
-          }).addTo(layerGroup);
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.8
+          });
+      } else {
+          // 2. Specific Icons for Valves, Hydrants, House Connections
+          let iconClass = '';
+          let isSquare = false;
 
+          switch (point.type) {
+            case PointType.VALVE:
+            case PointType.AIR_VALVE:
+            case PointType.WASH_VALVE:
+              iconClass = 'fa-faucet';
+              break;
+            case PointType.FIRE_HYDRANT:
+              iconClass = 'fa-fire-extinguisher';
+              break;
+            case PointType.WATER_HOUSE_CONNECTION:
+            case PointType.SEWAGE_HOUSE_CONNECTION:
+              iconClass = 'fa-home';
+              break;
+            case PointType.MANHOLE:
+            case PointType.INSPECTION_CHAMBER:
+            case PointType.OIL_TRAP:
+               isSquare = true;
+               break;
+            default:
+               iconClass = 'fa-map-marker-alt';
+          }
+
+          if (isSquare) {
+               // Square Marker (Manholes)
+               const icon = L.divIcon({
+                  className: 'custom-square-marker',
+                  html: `<div style="
+                      width: 16px; 
+                      height: 16px; 
+                      background-color: ${color}; 
+                      border: 2px solid white; 
+                      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                  ">
+                    ${point.type === PointType.MANHOLE ? '<div style="width:4px; height:4px; background:white; border-radius:50%"></div>' : ''}
+                  </div>`,
+                  iconSize: [16, 16],
+                  iconAnchor: [8, 8]
+              });
+              marker = L.marker(latLng, { icon });
+          } else {
+              // Icon Marker (Valves, Hydrants, HC)
+              const icon = L.divIcon({
+                  className: 'custom-point-icon',
+                  html: `<div style="
+                    width: 24px;
+                    height: 24px;
+                    background-color: ${color};
+                    border: 2px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  ">
+                    <i class="fas ${iconClass}" style="color: white; font-size: 11px;"></i>
+                  </div>`,
+                  iconSize: [24, 24],
+                  iconAnchor: [12, 12]
+              });
+              marker = L.marker(latLng, { icon });
+          }
+      }
+
+      if (marker) {
+          marker.addTo(layerGroup);
           marker.on('click', (e: any) => {
               L.DomEvent.stopPropagation(e);
               onPointClick(point);

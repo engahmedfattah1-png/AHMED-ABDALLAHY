@@ -220,7 +220,7 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
         </div>
 
         {mainMode === 'IMPORT' ? (
-          <ImportPanel onImported={onBulkImport} />
+          <ImportPanel onImported={onBulkImport} defaultNetworkType={currentFilterType} />
         ) : mainMode === 'UPDATE' ? (
           <div className="space-y-6">
             <div className="flex bg-slate-100 p-1 rounded-xl">

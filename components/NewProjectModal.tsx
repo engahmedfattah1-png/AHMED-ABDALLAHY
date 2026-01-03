@@ -91,13 +91,18 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
           if (val.includes('AIR') || val.includes('هواء')) return PointType.AIR_VALVE;
           if (val.includes('WASH') || val.includes('غسيل')) return PointType.WASH_VALVE;
           if (val.includes('FIRE') || val.includes('HYDRANT') || val.includes('حريق')) return PointType.FIRE_HYDRANT;
-          if (val.includes('WATER HOUSE') || val.includes('WATER CONN') || val.includes('مياه') || val.includes('منزلية مياه')) return PointType.WATER_HOUSE_CONNECTION;
+          // Enhanced detection for Water House Connections including generic terms
+          if (val.includes('WATER HOUSE') || val.includes('WATER CONN') || val.includes('HOUSE') || val.includes('CONN') || val.includes('H.C') || val.includes('HC') || val.includes('مياه') || val.includes('منزلية') || val.includes('منزليه') || val.includes('وصلة') || val.includes('وصله')) return PointType.WATER_HOUSE_CONNECTION;
           if (val.includes('VALVE') || val.includes('VLV') || val.includes('محبس')) return PointType.VALVE;
           return null;
       };
 
       if (projectNetworkType === NetworkType.SEWAGE) {
-          return checkSewage() || PointType.MANHOLE;
+          const s = checkSewage();
+          if (s) return s;
+          // Fallback for generic terms in strict Sewage mode
+          if (val.includes('HOUSE') || val.includes('CONN') || val.includes('HC') || val.includes('H.C')) return PointType.SEWAGE_HOUSE_CONNECTION;
+          return PointType.MANHOLE;
       }
 
       if (projectNetworkType === NetworkType.WATER) {
