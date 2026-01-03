@@ -154,7 +154,7 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType,
     // Render Points with custom shapes
     points.filter(p => {
       if (selectedType === 'ALL') return true;
-      const isWaterPoint = [PointType.VALVE, PointType.FIRE_HYDRANT, PointType.WATER_HOUSE_CONNECTION, PointType.AIR_VALVE, PointType.WASH_VALVE].includes(p.type);
+      const isWaterPoint = [PointType.VALVE, PointType.FIRE_HYDRANT, PointType.WATER_HOUSE_CONNECTION, PointType.AIR_VALVE, PointType.WASH_VALVE, PointType.ELBOW, PointType.TEE, PointType.SADDLE, PointType.REDUCER].includes(p.type);
       return selectedType === NetworkType.WATER ? isWaterPoint : !isWaterPoint;
     }).forEach(point => {
       const color = STATUS_COLORS[point.status];
@@ -226,7 +226,7 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType,
       `}</style>
 
       <div className="absolute top-6 left-6 z-[400] bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-lg border border-slate-200">
-         <h3 className="text-sm font-black text-slate-800">{title || "خريطة الموقع العام"}</h3>
+         <h3 className="text-sm font-black text-slate-800">{title || "General Site Map"}</h3>
       </div>
 
       {/* Map Style Toggle */}
@@ -235,31 +235,31 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType,
            onClick={() => setMapStyle('SATELLITE')}
            className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${mapStyle === 'SATELLITE' ? 'bg-slate-900 text-white shadow' : 'text-slate-500 hover:text-slate-900'}`}
          >
-           <i className="fas fa-satellite ml-1"></i> أقمار صناعية
+           <i className="fas fa-satellite ml-1"></i> Satellite
          </button>
          <button 
            onClick={() => setMapStyle('STREETS')}
            className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all ${mapStyle === 'STREETS' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:text-blue-600'}`}
          >
-           <i className="fas fa-map ml-1"></i> خريطة
+           <i className="fas fa-map ml-1"></i> Street
          </button>
       </div>
 
       {/* Legend */}
       <div className="absolute bottom-6 left-6 z-[400] bg-white/95 backdrop-blur-sm shadow-xl border border-slate-100 p-4 rounded-2xl min-w-[140px]">
-          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">مفتاح الخريطة</h4>
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Legend</h4>
           <div className="space-y-2">
              <div className="flex items-center gap-3">
                <div className="w-3 h-3 rounded-full bg-[#94a3b8] shadow-sm ring-2 ring-white"></div>
-               <span className="text-[10px] font-bold text-slate-600">غير منفذ</span>
+               <span className="text-[10px] font-bold text-slate-600">Planned</span>
              </div>
              <div className="flex items-center gap-3">
                <div className="w-3 h-3 rounded-full bg-[#22c55e] shadow-sm ring-2 ring-white"></div>
-               <span className="text-[10px] font-bold text-slate-600">تم التنفيذ</span>
+               <span className="text-[10px] font-bold text-slate-600">Executed</span>
              </div>
              <div className="flex items-center gap-3">
                <div className="w-3 h-3 rounded-full bg-[#f59e0b] shadow-sm ring-2 ring-white"></div>
-               <span className="text-[10px] font-bold text-slate-600">جاري العمل</span>
+               <span className="text-[10px] font-bold text-slate-600">In Progress</span>
              </div>
           </div>
         </div>

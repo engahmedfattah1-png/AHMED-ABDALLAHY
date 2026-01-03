@@ -49,9 +49,11 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
       if (!rawType) return PointType.MANHOLE; // Default fallback if no type
       const val = String(rawType).toUpperCase();
       
-      // 1. Fittings (Elbows, Tees, etc.)
+      // 1. Fittings (Elbows, Tees, Saddle, Reducer etc.)
       if (val.includes('ELBOW') || val.includes('BEND') || val.includes('كوع')) return PointType.ELBOW;
       if (val.includes('TEE') || val.includes('مشترك') || val.includes('T-PIECE')) return PointType.TEE;
+      if (val.includes('SADDLE') || val.includes('CLAMP') || val.includes('STRAP') || val.includes('سرج') || val.includes('مفتاح ربط')) return PointType.SADDLE;
+      if (val.includes('REDUCER') || val.includes('MASLOOB') || val.includes('مسلوب')) return PointType.REDUCER;
 
       // 2. Specific Valves (Air/Wash)
       if (val.includes('AIR') || val.includes('هواء')) return PointType.AIR_VALVE;
@@ -342,7 +344,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
 
   const processFile = async (file: File) => {
     setLoading(true);
-    setStatusMsg('جاري تحليل الملف...');
+    setStatusMsg('Parsing file...');
     const extension = file.name.split('.').pop()?.toLowerCase();
 
     try {
@@ -377,9 +379,9 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
               len = calculateDistance(start, end);
           }
           
-          const nameVal = getFuzzyValue(r, ['Name', 'Segment Name', 'Pipe Name']) || `خط مستورد ${idx}`;
+          const nameVal = getFuzzyValue(r, ['Name', 'Segment Name', 'Pipe Name']) || `Imported Pipe ${idx}`;
           const typeVal = getFuzzyValue(r, ['Type', 'Network Type']) || 'WATER';
-          const contractorVal = getFuzzyValue(r, ['Contractor', 'Company']) || 'غير محدد';
+          const contractorVal = getFuzzyValue(r, ['Contractor', 'Company']) || 'Unknown';
 
           return {
             id: `XL-${idx}-${Date.now()}`,
@@ -402,7 +404,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
              const y = parseFloatSafe(getFuzzyValue(r, ['Lat', 'Latitude', 'Y', 'Northing']));
              
              if (x !== 0 && y !== 0) {
-                 const nameVal = getFuzzyValue(r, ['Name', 'Point Name', 'Node Name']) || `نقطة مستوردة ${idx}`;
+                 const nameVal = getFuzzyValue(r, ['Name', 'Point Name', 'Node Name']) || `Imported Point ${idx}`;
                  const rawType = getFuzzyValue(r, ['Type', 'Point Type', 'Class', 'Category', 'الصنف', 'النوع']);
                  const pType = detectPointType(rawType);
                  const pRaw = processCoordinates(x, y);
@@ -420,7 +422,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
 
 
         onImported(segments, points);
-        setStatusMsg(`تم استيراد ${segments.length} خط و ${points.length} نقطة`);
+        setStatusMsg(`Imported ${segments.length} segments and ${points.length} points.`);
       } 
       else if (extension === 'kmz') {
         const buffer = await file.arrayBuffer();
@@ -437,7 +439,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
 
         for (let i = 0; i < placemarks.length; i++) {
             const p = placemarks[i];
-            const name = p.getElementsByTagName("name")[0]?.textContent || `عنصر KMZ ${i}`;
+            const name = p.getElementsByTagName("name")[0]?.textContent || `KMZ Item ${i}`;
             const desc = p.getElementsByTagName("description")[0]?.textContent || "";
 
             const lineString = p.getElementsByTagName("LineString")[0];
@@ -484,7 +486,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
             }
         }
         onImported(segments, points);
-        setStatusMsg(`تم استيراد KMZ: ${segments.length} خط، ${points.length} عنصر`);
+        setStatusMsg(`Imported KMZ: ${segments.length} lines, ${points.length} points`);
       }
       else if (extension === 'zip') { // SHP
           const buffer = await file.arrayBuffer();
@@ -492,7 +494,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
           const features = Array.isArray(geojson) ? geojson.flatMap((g: any) => g.features) : (geojson as any).features;
           const { segments, points } = parseGeoJSONFeatures(features);
           onImported(segments, points);
-          setStatusMsg(`تم استيراد SHP: ${segments.length} خط، ${points.length} عنصر`);
+          setStatusMsg(`Imported SHP: ${segments.length} lines, ${points.length} points`);
       }
       else if (extension === 'geojson' || extension === 'json') { // GeoJSON
          const text = await file.text();
@@ -500,23 +502,23 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
          const features = Array.isArray(geojson) ? geojson : (geojson.features || (geojson.type === 'Feature' ? [geojson] : []));
          const { segments, points } = parseGeoJSONFeatures(features);
          onImported(segments, points);
-         setStatusMsg(`تم استيراد GeoJSON: ${segments.length} خط، ${points.length} عنصر`);
+         setStatusMsg(`Imported GeoJSON: ${segments.length} lines, ${points.length} points`);
       }
       else if (extension === 'xml' || extension === 'dxf') { // Civil 3D
           const text = await file.text();
           if (extension === 'xml') {
               const { segments, points } = parseLandXML(text);
               onImported(segments, points);
-              setStatusMsg(`تم استيراد LandXML: ${segments.length} خط، ${points.length} نقطة`);
+              setStatusMsg(`Imported LandXML: ${segments.length} pipes, ${points.length} structures`);
           } else {
               const { segments, points } = parseDXF(text);
               onImported(segments, points);
-              setStatusMsg(`تم استيراد DXF: ${segments.length} خط، ${points.length} نقطة`);
+              setStatusMsg(`Imported DXF: ${segments.length} lines, ${points.length} points`);
           }
       }
     } catch (err) {
       console.error(err);
-      setStatusMsg('خطأ في معالجة الملف.');
+      setStatusMsg('Error processing file.');
     } finally {
       setLoading(false);
     }
@@ -528,7 +530,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
         <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
            <i className={`fas ${loading ? 'fa-spinner fa-spin text-blue-500' : 'fa-file-import text-blue-400'} text-3xl`}></i>
         </div>
-        <h3 className="text-lg font-black text-slate-800 mb-2">استيراد المخططات الجغرافية</h3>
+        <h3 className="text-lg font-black text-slate-800 mb-2">Import Geospatial Data</h3>
         <p className="text-xs text-slate-400 font-bold max-w-xs mx-auto mb-4">
            (Civil 3D / KMZ / Shapefile Zip / GeoJSON / Excel / HTML)
         </p>
@@ -538,12 +540,12 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
            onClick={handleDownloadTemplate} 
            className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black hover:bg-blue-100 transition-colors"
         >
-           <i className="fas fa-file-excel"></i> تحميل نموذج Excel
+           <i className="fas fa-file-excel"></i> Download Excel Template
         </button>
         
         <label className="relative inline-block cursor-pointer w-full">
           <span className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-xs hover:bg-blue-600 transition-all shadow-xl block">
-            {loading ? 'جاري التحميل...' : 'اختيار ملف من الجهاز'}
+            {loading ? 'Uploading...' : 'Choose File'}
           </span>
           <input 
             type="file" 

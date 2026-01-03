@@ -23,8 +23,6 @@ const ValidationModal: React.FC<ValidationModalProps> = ({ issues, isOpen, onClo
   const handleLocate = (issue: AuditIssue) => {
       if (issue.location) {
           onLocateIssue(issue.location);
-          // Optional: Keep modal open or close it? 
-          // Usually better to minimize or close on mobile, let's keep it simple and close for now so user sees map.
           onClose();
       }
   };
@@ -41,8 +39,8 @@ const ValidationModal: React.FC<ValidationModalProps> = ({ issues, isOpen, onClo
                 <i className="fas fa-microscope text-2xl animate-pulse"></i>
              </div>
              <div>
-               <h3 className="text-xl font-black">تقرير التدقيق الهندسي</h3>
-               <p className="text-xs text-slate-400 font-bold mt-1">تحليل طوبولوجي وتكاملي للشبكة</p>
+               <h3 className="text-xl font-black">Engineering Audit Report</h3>
+               <p className="text-xs text-slate-400 font-bold mt-1">Topology and Data Integrity Analysis</p>
              </div>
           </div>
           <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
@@ -59,26 +57,26 @@ const ValidationModal: React.FC<ValidationModalProps> = ({ issues, isOpen, onClo
             <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-3">
                 <i className="fas fa-robot text-indigo-600"></i>
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">تحليل الذكاء الاصطناعي (AI)</span>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">AI Analysis</span>
                 </div>
                 {isAiAnalyzing ? (
                 <div className="flex items-center gap-3">
                     <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-xs text-slate-500 font-bold">جاري دراسة السيناريوهات الهندسية...</p>
+                    <p className="text-xs text-slate-500 font-bold">Analyzing engineering scenarios...</p>
                 </div>
                 ) : (
-                <p className="text-xs text-slate-700 leading-relaxed font-bold border-r-4 border-indigo-500 pr-3">
-                    {aiComment || "جاري انتظار التحليل..."}
+                <p className="text-xs text-slate-700 leading-relaxed font-bold border-l-4 border-indigo-500 pl-3">
+                    {aiComment || "Waiting for analysis..."}
                 </p>
                 )}
             </div>
           </div>
 
           <div className="flex items-center justify-between mb-4">
-             <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">الملاحظات ({sortedIssues.length})</h4>
+             <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Observations ({sortedIssues.length})</h4>
              <div className="flex gap-2">
-                 <span className="px-2 py-1 bg-red-100 text-red-600 text-[9px] font-black rounded-lg">{issues.filter(i => i.type === 'ERROR').length} خطأ</span>
-                 <span className="px-2 py-1 bg-amber-100 text-amber-600 text-[9px] font-black rounded-lg">{issues.filter(i => i.type === 'WARNING').length} تحذير</span>
+                 <span className="px-2 py-1 bg-red-100 text-red-600 text-[9px] font-black rounded-lg">{issues.filter(i => i.type === 'ERROR').length} Errors</span>
+                 <span className="px-2 py-1 bg-amber-100 text-amber-600 text-[9px] font-black rounded-lg">{issues.filter(i => i.type === 'WARNING').length} Warnings</span>
              </div>
           </div>
           
@@ -88,8 +86,8 @@ const ValidationModal: React.FC<ValidationModalProps> = ({ issues, isOpen, onClo
                 <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-green-500 animate-bounce">
                    <i className="fas fa-check-double text-4xl"></i>
                 </div>
-                <h2 className="text-lg font-black text-green-800 mb-2">الشبكة سليمة تماماً</h2>
-                <p className="text-xs text-green-600 font-bold max-w-xs mx-auto">لم يتم العثور على أخطاء طوبولوجية أو مشاكل في البيانات.</p>
+                <h2 className="text-lg font-black text-green-800 mb-2">Network is Healthy</h2>
+                <p className="text-xs text-green-600 font-bold max-w-xs mx-auto">No topological errors or data issues found.</p>
               </div>
             ) : (
               sortedIssues.map(issue => (
@@ -111,7 +109,7 @@ const ValidationModal: React.FC<ValidationModalProps> = ({ issues, isOpen, onClo
                                 onClick={() => handleLocate(issue)}
                                 className="text-[10px] bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-500 px-3 py-1.5 rounded-lg font-black transition-all flex items-center gap-2"
                             >
-                                <i className="fas fa-map-marker-alt"></i> تحديد الموقع
+                                <i className="fas fa-map-marker-alt"></i> Locate
                             </button>
                         )}
                     </div>

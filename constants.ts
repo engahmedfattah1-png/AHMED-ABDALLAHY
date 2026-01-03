@@ -18,7 +18,7 @@ const movePoint = (start: {x: number, y: number}, dxMeters: number, dyMeters: nu
     return { x: start.x + lonChange, y: start.y + latChange };
 }
 
-// 1. مشروع المنار - جدة (Coordinates: ~21.61, 39.24)
+// 1. Manar Project - Jeddah
 const createWaterLoop = (pid: string, startLat: number, startLon: number): { segments: NetworkSegment[], points: NetworkPoint[] } => {
   const segments: NetworkSegment[] = [];
   const points: NetworkPoint[] = [];
@@ -31,10 +31,10 @@ const createWaterLoop = (pid: string, startLat: number, startLon: number): { seg
   const nodes = [p0, p1, p2, p3]; // 0:BL, 1:BR, 2:TR, 3:TL
 
   const lines = [
-    { s: 0, e: 1, name: 'خط رئيسي جنوبي 400 مم' },
-    { s: 1, e: 2, name: 'خط رئيسي شرقي 400 مم' },
-    { s: 2, e: 3, name: 'خط رئيسي شمالي 400 مم' },
-    { s: 3, e: 0, name: 'خط رئيسي غربي 400 مم' }
+    { s: 0, e: 1, name: 'South Main Line 400mm' },
+    { s: 1, e: 2, name: 'East Main Line 400mm' },
+    { s: 2, e: 3, name: 'North Main Line 400mm' },
+    { s: 3, e: 0, name: 'West Main Line 400mm' }
   ];
 
   lines.forEach((l, idx) => {
@@ -47,12 +47,12 @@ const createWaterLoop = (pid: string, startLat: number, startLon: number): { seg
       startNode: nodes[l.s],
       endNode: nodes[l.e],
       completionPercentage: 100,
-      contractor: 'شركة المياه الوطنية'
+      contractor: 'National Water Co.'
     });
     
     points.push({
       id: `${pid}-V-${idx}`,
-      name: `محبس قفل زاوية ${idx+1}`,
+      name: `Isolation Valve ${idx+1}`,
       type: PointType.VALVE,
       status: ProjectStatus.COMPLETED,
       location: nodes[l.s]
@@ -65,19 +65,19 @@ const createWaterLoop = (pid: string, startLat: number, startLon: number): { seg
   
   segments.push({
     id: `${pid}-W-SUB-1`,
-    name: 'خط توزيع فرعي أوسط',
+    name: 'Mid Distribution Line',
     type: NetworkType.WATER,
     status: ProjectStatus.IN_PROGRESS,
     length: 400,
     startNode: midBottom,
     endNode: midTop,
     completionPercentage: 60,
-    contractor: 'المقاولون العرب'
+    contractor: 'Arab Contractors'
   });
 
   points.push({
     id: `${pid}-FH-1`,
-    name: 'حنفية حريق وسطى',
+    name: 'Central Fire Hydrant',
     type: PointType.FIRE_HYDRANT,
     status: ProjectStatus.COMPLETED,
     location: movePoint(midBottom, 0, 200)
@@ -103,19 +103,19 @@ const createSewageTree = (pid: string, startLat: number, startLon: number, direc
   for(let i=0; i<trunkNodes.length - 1; i++) {
     segments.push({
       id: `${pid}-S-TRUNK-${i}`,
-      name: `خط انحدار رئيسي ${i+1}`,
+      name: `Gravity Main ${i+1}`,
       type: NetworkType.SEWAGE,
       status: ProjectStatus.COMPLETED,
       length: spacing,
       startNode: trunkNodes[i],
       endNode: trunkNodes[i+1],
       completionPercentage: 100,
-      contractor: 'شركة بن لادن'
+      contractor: 'Bin Laden Group'
     });
 
     points.push({
       id: `${pid}-MH-${i}`,
-      name: `منهل رئيسي ${i+1}`,
+      name: `Main Manhole ${i+1}`,
       type: PointType.MANHOLE,
       status: ProjectStatus.COMPLETED,
       location: trunkNodes[i]
@@ -123,7 +123,7 @@ const createSewageTree = (pid: string, startLat: number, startLon: number, direc
   }
   points.push({
     id: `${pid}-MH-LAST`,
-    name: 'منهل تجميع نهائي',
+    name: 'Final Collection Manhole',
     type: PointType.MANHOLE,
     status: ProjectStatus.COMPLETED,
     location: trunkNodes[trunkNodes.length-1]
@@ -138,19 +138,19 @@ const createSewageTree = (pid: string, startLat: number, startLon: number, direc
 
     segments.push({
       id: `${pid}-S-LAT-${i}`,
-      name: `وصلة منزلية ${i}`,
+      name: `House Connection ${i}`,
       type: NetworkType.SEWAGE,
       status: ProjectStatus.IN_PROGRESS,
       length: 50,
       startNode: branchEnd,
       endNode: startNode,
       completionPercentage: 40,
-      contractor: 'مؤسسة الإنجاز'
+      contractor: 'Al Injaz Est.'
     });
 
     points.push({
       id: `${pid}-IC-${i}`,
-      name: `غرفة تفتيش منزلية ${i}`,
+      name: `Inspection Chamber ${i}`,
       type: PointType.INSPECTION_CHAMBER,
       status: ProjectStatus.PENDING,
       location: branchEnd
@@ -173,20 +173,20 @@ const createLogisticNetwork = (pid: string, startLat: number, startLon: number):
 
         segments.push({
             id: `${pid}-W-${i}`,
-            name: `خط تغذية عنابر ${i+1}`,
+            name: `Warehouse Feed Line ${i+1}`,
             type: NetworkType.WATER,
             status: ProjectStatus.COMPLETED,
             length: 300,
             startNode: lineStart,
             endNode: lineEnd,
             completionPercentage: 100,
-            contractor: 'السيف للمقاولات'
+            contractor: 'El Seif Engineering'
         });
         
         if(i % 2 === 0) {
             points.push({
                 id: `${pid}-AV-${i}`,
-                name: `محبس هواء ${i}`,
+                name: `Air Valve ${i}`,
                 type: PointType.AIR_VALVE,
                 status: ProjectStatus.COMPLETED,
                 location: lineStart
@@ -194,7 +194,7 @@ const createLogisticNetwork = (pid: string, startLat: number, startLon: number):
         } else {
              points.push({
                 id: `${pid}-WV-${i}`,
-                name: `محبس غسيل ${i}`,
+                name: `Wash Valve ${i}`,
                 type: PointType.WASH_VALVE,
                 status: ProjectStatus.COMPLETED,
                 location: lineEnd
@@ -207,19 +207,19 @@ const createLogisticNetwork = (pid: string, startLat: number, startLon: number):
 
         segments.push({
             id: `${pid}-S-${i}`,
-            name: `خط صرف صناعي ${i+1}`,
+            name: `Industrial Waste Line ${i+1}`,
             type: NetworkType.SEWAGE,
             status: i > 2 ? ProjectStatus.PENDING : ProjectStatus.IN_PROGRESS,
             length: 300,
             startNode: sewStart,
             endNode: sewEnd,
             completionPercentage: i > 2 ? 0 : 75,
-            contractor: 'السيف للمقاولات'
+            contractor: 'El Seif Engineering'
         });
 
         points.push({
             id: `${pid}-TRAP-${i}`,
-            name: `مصيدة زيوت ${i}`,
+            name: `Oil Trap ${i}`,
             type: PointType.OIL_TRAP,
             status: i > 2 ? ProjectStatus.PENDING : ProjectStatus.COMPLETED,
             location: sewStart
@@ -238,8 +238,8 @@ const manarSewage = createSewageTree('MNR', 21.6040, 39.2310, 'EAST');
 
 const projectManar: Project = {
   id: 'PRJ-JED-MNR',
-  name: 'مشروع المنار',
-  locationName: 'جدة - حي المنار',
+  name: 'Al Manar Project',
+  locationName: 'Jeddah - Al Manar',
   lastUpdated: '2024-05-15',
   segments: [...manarWater.segments, ...manarSewage.segments],
   points: [...manarWater.points, ...manarSewage.points]
@@ -250,8 +250,8 @@ const logisticNet = createLogisticNetwork('LOG', 21.4300, 39.2300);
 
 const projectLogistic: Project = {
   id: 'PRJ-JED-LOG',
-  name: 'المشروع اللوجستي',
-  locationName: 'جدة - المدينة الصناعية',
+  name: 'Logistics Hub Project',
+  locationName: 'Jeddah - Industrial City',
   lastUpdated: '2024-06-10',
   segments: logisticNet.segments,
   points: logisticNet.points
@@ -263,8 +263,8 @@ const far3Sewage2 = createSewageTree('FR3-B', 21.2700, 40.4120, 'NORTH');
 
 const projectAbuFarea: Project = {
   id: 'PRJ-TAIF-FR3',
-  name: 'مشروع أبو فارع',
-  locationName: 'الطائف - وادي أبو فارع',
+  name: 'Abu Farea Project',
+  locationName: 'Taif - Abu Farea Valley',
   lastUpdated: '2024-06-01',
   segments: [...far3Sewage1.segments, ...far3Sewage2.segments],
   points: [...far3Sewage1.points, ...far3Sewage2.points]
@@ -277,15 +277,17 @@ export const MOCK_PROJECTS: Project[] = [
 ];
 
 export const POINT_LABELS: Record<PointType, string> = {
-  [PointType.MANHOLE]: 'منهل صرف',
-  [PointType.SEWAGE_HOUSE_CONNECTION]: 'وصلة منزلية',
-  [PointType.INSPECTION_CHAMBER]: 'غرفة تفتيش',
-  [PointType.VALVE]: 'محبس تحكم',
-  [PointType.FIRE_HYDRANT]: 'حنفية حريق',
-  [PointType.WATER_HOUSE_CONNECTION]: 'عداد مياه',
-  [PointType.AIR_VALVE]: 'محبس هواء',
-  [PointType.WASH_VALVE]: 'محبس غسيل',
-  [PointType.OIL_TRAP]: 'مصيدة زيوت',
-  [PointType.ELBOW]: 'كوع',
-  [PointType.TEE]: 'مشترك',
+  [PointType.MANHOLE]: 'Manhole',
+  [PointType.SEWAGE_HOUSE_CONNECTION]: 'Sewage House Conn.',
+  [PointType.INSPECTION_CHAMBER]: 'Inspection Chamber',
+  [PointType.VALVE]: 'Control Valve',
+  [PointType.FIRE_HYDRANT]: 'Fire Hydrant',
+  [PointType.WATER_HOUSE_CONNECTION]: 'Water Meter',
+  [PointType.AIR_VALVE]: 'Air Valve',
+  [PointType.WASH_VALVE]: 'Wash Valve',
+  [PointType.OIL_TRAP]: 'Oil Trap',
+  [PointType.ELBOW]: 'Elbow',
+  [PointType.TEE]: 'Tee',
+  [PointType.SADDLE]: 'Saddle',
+  [PointType.REDUCER]: 'Reducer',
 };

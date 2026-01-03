@@ -21,7 +21,7 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
 }) => {
   const [mainMode, setMainMode] = useState<'UPDATE' | 'CREATE' | 'IMPORT'>('UPDATE');
   const [subMode, setSubMode] = useState<'SEGMENT' | 'POINT'>(initialSelection?.type || 'SEGMENT');
-  const [updaterName, setUpdaterName] = useState('مهندس الموقع');
+  const [updaterName, setUpdaterName] = useState('Site Engineer');
   
   const [selectedSegmentId, setSelectedSegmentId] = useState<string>(initialSelection?.type === 'SEGMENT' ? initialSelection.id : '');
   const [segmentProgress, setSegmentProgress] = useState<number>(0);
@@ -30,7 +30,7 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
   const [selectedPointId, setSelectedPointId] = useState<string>(initialSelection?.type === 'POINT' ? initialSelection.id : '');
   const [pointStatus, setPointStatus] = useState<ProjectStatus>(ProjectStatus.PENDING);
 
-  // حقول الإضافة الجديدة
+  // New Creation Fields
   const [newName, setNewName] = useState('');
   const [newLength, setNewLength] = useState(0);
   const [newType, setNewType] = useState<NetworkType>(currentFilterType === 'ALL' ? NetworkType.WATER : (currentFilterType as NetworkType));
@@ -64,7 +64,7 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
 
   const handleCreateNew = () => {
     if (!newName) return;
-    const timestamp = new Date().toLocaleString('ar-EG');
+    const timestamp = new Date().toLocaleString('en-US');
     const uniqueId = `ID-${Date.now().toString().slice(-6)}`;
     
     if (subMode === 'SEGMENT') {
@@ -109,9 +109,9 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
 
   const getStatusLabel = (s: ProjectStatus) => {
     switch(s) {
-      case ProjectStatus.COMPLETED: return 'منفذ (Executed)';
-      case ProjectStatus.IN_PROGRESS: return 'جاري (In Progress)';
-      default: return 'مخطط (Not Executed)';
+      case ProjectStatus.COMPLETED: return 'Executed';
+      case ProjectStatus.IN_PROGRESS: return 'In Progress';
+      default: return 'Planned';
     }
   };
 
@@ -153,8 +153,8 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
                 <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20 ring-4 ring-blue-50/50">
                    <i className="fas fa-fingerprint text-3xl"></i>
                 </div>
-                <h4 className="text-lg font-black text-slate-800">تأكيد العملية</h4>
-                <p className="text-xs text-slate-400 font-bold mt-1">هذا الإجراء محمي، يرجى إدخال رمز المهندس</p>
+                <h4 className="text-lg font-black text-slate-800">Confirm Action</h4>
+                <p className="text-xs text-slate-400 font-bold mt-1">Protected action. Enter Engineer PIN.</p>
              </div>
              
              <form onSubmit={confirmUpdateWithPassword} className="space-y-4">
@@ -171,14 +171,14 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
                  {passwordError && (
                    <div className="flex items-center justify-center gap-2 mt-2 text-red-500 animate-in slide-in-from-top-1">
                      <i className="fas fa-exclamation-circle text-xs"></i>
-                     <span className="text-[10px] font-black">رمز المرور غير صحيح</span>
+                     <span className="text-[10px] font-black">Incorrect PIN</span>
                    </div>
                  )}
                </div>
                
                <div className="grid grid-cols-2 gap-3 pt-2">
-                 <button type="button" onClick={() => setIsPasswordModalOpen(false)} className="px-4 py-3 bg-slate-100 text-slate-500 rounded-xl font-black text-xs hover:bg-slate-200 transition-all">إلغاء</button>
-                 <button type="submit" className="px-4 py-3 bg-blue-600 text-white rounded-xl font-black text-xs hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all">تأكيد</button>
+                 <button type="button" onClick={() => setIsPasswordModalOpen(false)} className="px-4 py-3 bg-slate-100 text-slate-500 rounded-xl font-black text-xs hover:bg-slate-200 transition-all">Cancel</button>
+                 <button type="submit" className="px-4 py-3 bg-blue-600 text-white rounded-xl font-black text-xs hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all">Confirm</button>
                </div>
              </form>
           </div>
@@ -187,15 +187,15 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
 
       <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
         <div className="flex bg-slate-200 p-1 rounded-xl w-full">
-          <button onClick={() => setMainMode('UPDATE')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${mainMode === 'UPDATE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>تحديث الحالة</button>
-          <button onClick={() => setMainMode('CREATE')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${mainMode === 'CREATE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>إضافة يدوية</button>
-          <button onClick={() => setMainMode('IMPORT')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${mainMode === 'IMPORT' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>استيراد</button>
+          <button onClick={() => setMainMode('UPDATE')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${mainMode === 'UPDATE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Update Status</button>
+          <button onClick={() => setMainMode('CREATE')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${mainMode === 'CREATE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Manual Add</button>
+          <button onClick={() => setMainMode('IMPORT')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${mainMode === 'IMPORT' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Import</button>
         </div>
       </div>
 
       <div className="p-8">
         <div className="mb-6">
-          <label className="text-[10px] font-black text-slate-400 block mb-2 uppercase">المهندس المسؤول</label>
+          <label className="text-[10px] font-black text-slate-400 block mb-2 uppercase">Responsible Engineer</label>
           <input 
             type="text" 
             value={updaterName} 
@@ -209,12 +209,12 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
         ) : mainMode === 'UPDATE' ? (
           <div className="space-y-6">
             <div className="flex bg-slate-100 p-1 rounded-xl">
-              <button onClick={() => setSubMode('SEGMENT')} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${subMode === 'SEGMENT' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>مواسير</button>
-              <button onClick={() => setSubMode('POINT')} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${subMode === 'POINT' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400'}`}>عناصر</button>
+              <button onClick={() => setSubMode('SEGMENT')} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${subMode === 'SEGMENT' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Pipes</button>
+              <button onClick={() => setSubMode('POINT')} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${subMode === 'POINT' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400'}`}>Points</button>
             </div>
             
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 block uppercase tracking-wider">اختيار العنصر</label>
+              <label className="text-[10px] font-black text-slate-400 block uppercase tracking-wider">Select Item</label>
               <select 
                 value={subMode === 'SEGMENT' ? selectedSegmentId : selectedPointId}
                 onChange={(e) => {
@@ -234,7 +234,7 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
                 }}
                 className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
               >
-                <option value="">-- اختر --</option>
+                <option value="">-- Select --</option>
                 {subMode === 'SEGMENT' 
                   ? segments.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
                   : points.map(p => <option key={p.id} value={p.id}>{p.name}</option>)
@@ -245,7 +245,7 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
             {(subMode === 'SEGMENT' ? selectedSegmentId : selectedPointId) && (
               <div className="space-y-6 pt-4 border-t border-slate-50">
                  <div className="space-y-2">
-                   <label className="text-[10px] font-black text-slate-400 block mb-2 uppercase">الحالة التنفيذية</label>
+                   <label className="text-[10px] font-black text-slate-400 block mb-2 uppercase">Execution Status</label>
                    <div className="grid grid-cols-1 gap-2">
                      {[ProjectStatus.PENDING, ProjectStatus.IN_PROGRESS, ProjectStatus.COMPLETED].map(st => {
                        const isActive = (subMode === 'SEGMENT' ? segmentStatus : pointStatus) === st;
@@ -272,7 +272,7 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
                  {subMode === 'SEGMENT' && (
                    <div className="bg-slate-50 p-4 rounded-2xl">
                      <div className="flex justify-between items-center mb-3">
-                       <span className="text-[10px] font-black text-slate-400">الإنجاز اللحظي</span>
+                       <span className="text-[10px] font-black text-slate-400">Current Progress</span>
                        <span className="text-xl font-black text-blue-600">{segmentProgress}%</span>
                      </div>
                      <input type="range" min="0" max="100" value={segmentProgress} onChange={(e) => setSegmentProgress(Number(e.target.value))} className="w-full accent-blue-600" />
@@ -284,7 +284,7 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
                    className="w-full bg-slate-900 text-white py-4 rounded-xl font-black text-xs shadow-lg hover:bg-blue-600 transition-all flex items-center justify-center gap-2 group"
                  >
                    <i className="fas fa-shield-alt text-blue-400 group-hover:text-white transition-colors"></i>
-                   <span>حفظ وتحديث البيانات</span>
+                   <span>Save Updates</span>
                  </button>
               </div>
             )}
@@ -292,8 +292,8 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
         ) : (
           <div className="space-y-4 animate-in slide-in-from-left-4">
              <div className="flex bg-slate-100 p-1 rounded-xl">
-                  <button onClick={() => setSubMode('SEGMENT')} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${subMode === 'SEGMENT' ? 'bg-white text-blue-600' : 'text-slate-400'}`}>خط جديد</button>
-                  <button onClick={() => setSubMode('POINT')} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${subMode === 'POINT' ? 'bg-white text-blue-600' : 'text-slate-400'}`}>نقطة جديدة</button>
+                  <button onClick={() => setSubMode('SEGMENT')} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${subMode === 'SEGMENT' ? 'bg-white text-blue-600' : 'text-slate-400'}`}>New Pipe</button>
+                  <button onClick={() => setSubMode('POINT')} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${subMode === 'POINT' ? 'bg-white text-blue-600' : 'text-slate-400'}`}>New Point</button>
              </div>
              
              <div className="grid grid-cols-2 gap-3">
@@ -301,14 +301,14 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
                <input type="number" value={northing} onChange={(e) => setNorthing(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold" placeholder="Y (Northing)" />
              </div>
 
-             <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold" placeholder="اسم العنصر / الكود" />
+             <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold" placeholder="Item Name / Code" />
 
              {subMode === 'SEGMENT' ? (
                <div className="grid grid-cols-2 gap-3">
-                 <input type="number" value={newLength} onChange={(e) => setNewLength(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold" placeholder="الطول (م)" />
+                 <input type="number" value={newLength} onChange={(e) => setNewLength(Number(e.target.value))} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold" placeholder="Length (m)" />
                  <select value={newType} onChange={(e) => setNewType(e.target.value as NetworkType)} className="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl text-xs font-bold">
-                   <option value={NetworkType.WATER}>مياه</option>
-                   <option value={NetworkType.SEWAGE}>صرف</option>
+                   <option value={NetworkType.WATER}>Water</option>
+                   <option value={NetworkType.SEWAGE}>Sewage</option>
                  </select>
                </div>
              ) : (
@@ -317,7 +317,7 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
                </select>
              )}
 
-             <button onClick={handleCreateNew} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black text-xs shadow-lg">إضافة للشبكة</button>
+             <button onClick={handleCreateNew} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black text-xs shadow-lg">Add to Network</button>
           </div>
         )}
       </div>

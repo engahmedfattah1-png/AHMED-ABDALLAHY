@@ -23,11 +23,11 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
   const getStatusBadge = (status: ProjectStatus) => {
     switch (status) {
       case ProjectStatus.COMPLETED:
-        return <span className="px-2 py-1 text-[10px] font-black rounded-lg bg-green-100 text-green-700 border border-green-200">منفذ</span>;
+        return <span className="px-2 py-1 text-[10px] font-black rounded-lg bg-green-100 text-green-700 border border-green-200">Completed</span>;
       case ProjectStatus.IN_PROGRESS:
-        return <span className="px-2 py-1 text-[10px] font-black rounded-lg bg-amber-100 text-amber-700 border border-amber-200">جاري</span>;
+        return <span className="px-2 py-1 text-[10px] font-black rounded-lg bg-amber-100 text-amber-700 border border-amber-200">In Progress</span>;
       default:
-        return <span className="px-2 py-1 text-[10px] font-black rounded-lg bg-slate-100 text-slate-500 border border-slate-200">مخطط</span>;
+        return <span className="px-2 py-1 text-[10px] font-black rounded-lg bg-slate-100 text-slate-500 border border-slate-200">Planned</span>;
     }
   };
 
@@ -44,6 +44,8 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
       case PointType.SEWAGE_HOUSE_CONNECTION: return <i className="fas fa-home text-amber-700"></i>;
       case PointType.ELBOW: return <i className="fas fa-level-down-alt text-slate-500 transform rotate-90"></i>;
       case PointType.TEE: return <i className="fas fa-code-branch text-slate-500"></i>;
+      case PointType.SADDLE: return <i className="fas fa-puzzle-piece text-slate-600"></i>;
+      case PointType.REDUCER: return <i className="fas fa-compress-arrows-alt text-slate-500"></i>;
       default: return <i className="fas fa-map-marker-alt text-slate-400"></i>;
     }
   };
@@ -52,7 +54,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
   const categorizedPoints = useMemo(() => {
     return {
       valves: points.filter(p => p.type === PointType.VALVE),
-      fittings: points.filter(p => [PointType.AIR_VALVE, PointType.WASH_VALVE, PointType.FIRE_HYDRANT, PointType.ELBOW, PointType.TEE].includes(p.type)),
+      fittings: points.filter(p => [PointType.AIR_VALVE, PointType.WASH_VALVE, PointType.FIRE_HYDRANT, PointType.ELBOW, PointType.TEE, PointType.SADDLE, PointType.REDUCER].includes(p.type)),
       waterConn: points.filter(p => p.type === PointType.WATER_HOUSE_CONNECTION),
       manholes: points.filter(p => [PointType.MANHOLE, PointType.INSPECTION_CHAMBER, PointType.OIL_TRAP].includes(p.type)),
       sewageConn: points.filter(p => p.type === PointType.SEWAGE_HOUSE_CONNECTION),
@@ -78,8 +80,8 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
     <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
       <div className="p-6 border-b border-slate-50 flex flex-col gap-4">
         <div>
-          <h3 className="text-lg font-black text-slate-800">سجل بيانات الشبكة</h3>
-          <p className="text-[10px] text-slate-400 font-bold">عرض تفصيلي وتصنيف دقيق لمكونات الشبكة</p>
+          <h3 className="text-lg font-black text-slate-800">Network Data Registry</h3>
+          <p className="text-[10px] text-slate-400 font-bold">Detailed view and classification of network components</p>
         </div>
         
         <div className="flex flex-wrap gap-2 bg-slate-50 p-2 rounded-2xl overflow-x-auto custom-scrollbar">
@@ -89,7 +91,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
             className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'PIPES' ? 'bg-white shadow text-slate-800 ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
           >
              <i className="fas fa-ruler-horizontal"></i>
-             المواسير ({segments.length})
+             Pipes ({segments.length})
           </button>
 
           {/* Water Categories */}
@@ -102,7 +104,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
                   className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'VALVES' ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-100' : 'text-slate-400 hover:text-blue-500'}`}
                 >
                   <i className="fas fa-faucet"></i>
-                  محابس تحكم ({categorizedPoints.valves.length})
+                  Valves ({categorizedPoints.valves.length})
                 </button>
 
                 <button 
@@ -110,7 +112,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
                   className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'FITTINGS' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100' : 'text-slate-400 hover:text-indigo-500'}`}
                 >
                   <i className="fas fa-tools"></i>
-                  قطع خاصة ({categorizedPoints.fittings.length})
+                  Fittings ({categorizedPoints.fittings.length})
                 </button>
 
                 <button 
@@ -118,7 +120,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
                   className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'WATER_CONN' ? 'bg-cyan-50 text-cyan-600 ring-1 ring-cyan-100' : 'text-slate-400 hover:text-cyan-500'}`}
                 >
                   <i className="fas fa-home"></i>
-                  توصيلات منزلية ({categorizedPoints.waterConn.length})
+                  Connections ({categorizedPoints.waterConn.length})
                 </button>
              </>
           )}
@@ -133,7 +135,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
                   className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'MANHOLES' ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100' : 'text-slate-400 hover:text-amber-600'}`}
                 >
                   <i className="fas fa-dot-circle"></i>
-                  المناهل ({categorizedPoints.manholes.length})
+                  Manholes ({categorizedPoints.manholes.length})
                 </button>
 
                 <button 
@@ -141,7 +143,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
                   className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'SEWAGE_CONN' ? 'bg-orange-50 text-orange-600 ring-1 ring-orange-100' : 'text-slate-400 hover:text-orange-500'}`}
                 >
                   <i className="fas fa-network-wired"></i>
-                  توصيلات منزلية ({categorizedPoints.sewageConn.length})
+                  Connections ({categorizedPoints.sewageConn.length})
                 </button>
              </>
           )}
@@ -149,28 +151,28 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-right">
+        <table className="w-full text-left">
           <thead className="bg-slate-50/50 border-b border-slate-100">
             {activeTab === 'PIPES' ? (
               <tr>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase">الكود</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase">اسم الخط</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">النوع</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">الطول</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">الإنجاز</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">آخر تحديث</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">الحالة</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">الإجراءات</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase">Code</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase">Line Name</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Type</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Length</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Progress</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Updated</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Status</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Actions</th>
               </tr>
             ) : (
               <tr>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase">الكود</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase">اسم العنصر</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">التصنيف</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">الإحداثيات</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">آخر تحديث</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">الحالة</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">الإجراءات</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase">Code</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase">Name</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Class</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Coordinates</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Updated</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Status</th>
+                <th className="px-6 py-4 text-[11px] font-black text-slate-500 uppercase text-center">Actions</th>
               </tr>
             )}
           </thead>
@@ -186,10 +188,10 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`text-[10px] font-black ${segment.type === NetworkType.WATER ? 'text-blue-500' : 'text-amber-600'}`}>
-                        {segment.type === NetworkType.WATER ? 'مياه' : 'صرف'}
+                        {segment.type === NetworkType.WATER ? 'Water' : 'Sewage'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-center text-xs font-bold text-slate-700">{segment.length.toLocaleString()} م</td>
+                    <td className="px-6 py-4 text-center text-xs font-bold text-slate-700">{segment.length.toLocaleString()} m</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <div className="w-16 bg-slate-100 rounded-full h-1.5 overflow-hidden">
@@ -200,7 +202,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="text-[9px] font-bold text-slate-500 leading-tight">
-                         {segment.updatedBy || 'نظام آلي'}
+                         {segment.updatedBy || 'System'}
                          <div className="text-[8px] text-slate-400 mt-0.5">{segment.updatedAt || '-'}</div>
                       </div>
                     </td>
@@ -231,7 +233,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="text-[9px] font-bold text-slate-500 leading-tight">
-                         {point.updatedBy || 'نظام آلي'}
+                         {point.updatedBy || 'System'}
                          <div className="text-[8px] text-slate-400 mt-0.5">{point.updatedAt || '-'}</div>
                       </div>
                     </td>
@@ -248,7 +250,7 @@ const DataTable: React.FC<DataTableProps> = ({ segments, points, onSelect, onUpd
             ) : (
               <tr>
                 <td colSpan={8} className="py-12 text-center text-slate-400 font-bold text-xs">
-                  لا توجد بيانات متاحة في هذا التصنيف
+                  No data available in this category
                 </td>
               </tr>
             )}

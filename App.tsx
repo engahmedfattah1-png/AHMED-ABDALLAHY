@@ -19,13 +19,11 @@ interface AuditEntry {
 }
 
 const App: React.FC = () => {
-  // تم تحديث المفتاح إلى v9 لحذف البيانات القديمة وبدء سجل نظيف
   const STORAGE_KEY = 'infra_projects_v9';
 
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      // إذا لم يكن هناك بيانات محفوظة، نبدأ بمصفوفة فارغة بدلاً من المشاريع الوهمية ليكون "حذف الكل" واقعياً
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       console.error("Error loading projects", e);
@@ -43,7 +41,6 @@ const App: React.FC = () => {
   // State for focused location from validation
   const [mapFocusLocation, setMapFocusLocation] = useState<{x: number, y: number} | null>(null);
 
-  // التأكد من أن activeProjectId صالح دائماً
   useEffect(() => {
     if (projects.length > 0) {
       const exists = projects.find(p => p.id === activeProjectId);
@@ -70,7 +67,6 @@ const App: React.FC = () => {
     return { segments, points };
   }, [activeProject, filterType]);
 
-  // البيانات الخاصة بوضع التقسيم (Split View)
   const splitViewData = useMemo(() => {
     if (!activeProject || filterType !== 'ALL') return { water: null, sewage: null };
     
@@ -98,7 +94,7 @@ const App: React.FC = () => {
   const addLog = (message: string, type: 'UPDATE' | 'CREATE' | 'SYSTEM' | 'AUDIT' = 'UPDATE') => {
     const newLog: AuditEntry = {
       id: Date.now().toString(),
-      timestamp: new Date().toLocaleTimeString('ar-EG'),
+      timestamp: new Date().toLocaleTimeString('en-US'),
       message,
       type
     };
@@ -116,14 +112,14 @@ const App: React.FC = () => {
     };
     setProjects(prev => [...prev, newProject]);
     setActiveProjectId(newProject.id);
-    addLog(`تم إنشاء مشروع جديد: ${name} بكود ${id}`, 'SYSTEM');
+    addLog(`Created new project: ${name} (${id})`, 'SYSTEM');
     setShowNewProjectModal(false);
   };
 
   const handleDeleteProject = () => {
     if (!activeProject) return;
     
-    if (window.confirm(`تنبيه هام!\n\nهل أنت متأكد تماماً من حذف مشروع "${activeProject.name}"؟\nسيتم فقد جميع البيانات المرتبطة به نهائياً.`)) {
+    if (window.confirm(`Warning!\n\nAre you sure you want to delete project "${activeProject.name}"?\nAll associated data will be lost.`)) {
       const projectToDeleteId = activeProject.id;
       const updatedProjects = projects.filter(p => p.id !== projectToDeleteId);
       
@@ -131,17 +127,17 @@ const App: React.FC = () => {
       
       setProjects(updatedProjects);
       setActiveProjectId(nextProject ? nextProject.id : '');
-      addLog(`تم حذف المشروع: ${activeProject.name}`, 'SYSTEM');
+      addLog(`Deleted project: ${activeProject.name}`, 'SYSTEM');
     }
   };
 
   const handleDeleteAllProjects = () => {
-    if (window.confirm('تحذير شديد!\n\nسيتم حذف "جميع" المشاريع والبيانات المخزنة في النظام نهائياً.\nلا يمكن التراجع عن هذه الخطوة.\n\nهل أنت متأكد؟')) {
+    if (window.confirm('CRITICAL WARNING!\n\nThis will delete ALL projects and data stored in the system.\nThis action cannot be undone.\n\nAre you sure?')) {
       setProjects([]);
       setActiveProjectId('');
       setLogs([]);
       localStorage.removeItem(STORAGE_KEY);
-      addLog('تم حذف جميع المشاريع من النظام', 'SYSTEM');
+      addLog('System reset: All projects deleted', 'SYSTEM');
     }
   };
 
@@ -155,7 +151,7 @@ const App: React.FC = () => {
       const aiResponse = await getProjectInsights(filteredData.segments);
       setAiAuditComment(aiResponse);
     } catch {
-      setAiAuditComment("الذكاء الاصطناعي غير متاح حالياً.");
+      setAiAuditComment("AI service unavailable.");
     } finally {
       setIsAiAuditing(false);
     }
@@ -169,11 +165,11 @@ const App: React.FC = () => {
 
   const updateSegmentProgress = (id: string, progress: number, userName: string) => {
     if (!activeProject) return;
-    const timestamp = new Date().toLocaleString('ar-EG');
+    const timestamp = new Date().toLocaleString('en-US');
     const updatedSegments = activeProject.segments.map(s => {
       if (s.id === id) {
         const newStatus = progress === 100 ? ProjectStatus.COMPLETED : progress > 0 ? ProjectStatus.IN_PROGRESS : ProjectStatus.PENDING;
-        addLog(`تحديث ${s.name} بواسطة ${userName}`);
+        addLog(`Updated ${s.name} by ${userName}`);
         return { ...s, completionPercentage: progress, status: newStatus, updatedBy: userName, updatedAt: timestamp };
       }
       return s;
@@ -183,10 +179,10 @@ const App: React.FC = () => {
 
   const updatePointStatus = (id: string, status: ProjectStatus, userName: string) => {
     if (!activeProject) return;
-    const timestamp = new Date().toLocaleString('ar-EG');
+    const timestamp = new Date().toLocaleString('en-US');
     const updatedPoints = activeProject.points.map(p => {
       if (p.id === id) {
-        addLog(`تحديث ${p.name} بواسطة ${userName}`);
+        addLog(`Updated ${p.name} by ${userName}`);
         return { ...p, status, updatedBy: userName, updatedAt: timestamp };
       }
       return p;
@@ -206,27 +202,26 @@ const App: React.FC = () => {
 
   const handleLocateIssue = (location: { x: number, y: number }) => {
     setMapFocusLocation(location);
-    // Smooth scroll to map
     document.getElementById('map-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] pb-12 font-sans overflow-x-hidden" dir="rtl">
+    <div className="min-h-screen bg-[#f1f5f9] pb-12 font-sans overflow-x-hidden" dir="ltr">
       
       {/* Welcome Onboarding */}
       {showWelcome && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-[#0f172a]/95 backdrop-blur-xl">
            <div className="bg-white rounded-[48px] w-full max-w-xl p-10 text-center shadow-2xl animate-in zoom-in-95">
-              <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/40 rotate-3">
+              <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/40 -rotate-3">
                  <i className="fas fa-drafting-compass text-white text-3xl"></i>
               </div>
-              <h2 className="text-2xl font-black text-[#0f172a] mb-4">أهلاً بك في InfraTrack Pro</h2>
+              <h2 className="text-2xl font-black text-[#0f172a] mb-4">Welcome to InfraTrack Pro</h2>
               <p className="text-sm text-slate-500 font-bold leading-relaxed mb-8">
-                نظامك المتكامل لإدارة ومتابعة تنفيذ شبكات المياه والصرف الصحي ميدانياً. 
-                تم تحديث الواجهة لتطابق معايير اللوحات الهندسية العالمية.
+                Your integrated system for field management and tracking of water and sewage networks execution. 
+                Updated interface matching global engineering standards.
               </p>
               <button onClick={closeWelcome} className="w-full bg-[#0f172a] text-white py-5 rounded-2xl font-black text-sm shadow-xl hover:bg-blue-600 transition-all">
-                 ابدأ العمل الآن
+                 Start Working
               </button>
            </div>
         </div>
@@ -247,11 +242,11 @@ const App: React.FC = () => {
         <div className="container mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2.5 rounded-2xl cursor-pointer shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform" onClick={() => setShowNewProjectModal(true)} title="إضافة مشروع جديد">
+              <div className="bg-blue-600 p-2.5 rounded-2xl cursor-pointer shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform" onClick={() => setShowNewProjectModal(true)} title="Add New Project">
                 <i className="fas fa-folder-plus text-xl text-white"></i>
               </div>
               <div className="flex flex-col">
-                <h1 className="text-sm font-black tracking-widest text-blue-400 leading-none">شركة مهام المثالي</h1>
+                <h1 className="text-sm font-black tracking-widest text-blue-400 leading-none">Maham Al-Mithali Co.</h1>
                 <span className="text-[14px] font-black tracking-tighter text-white mt-1 uppercase">INFRA TRACK PRO</span>
               </div>
             </div>
@@ -261,7 +256,7 @@ const App: React.FC = () => {
                 onChange={(e) => setActiveProjectId(e.target.value)}
                 className="flex-1 md:w-72 bg-slate-800/80 text-white border border-white/10 px-4 py-2.5 rounded-2xl text-[12px] font-black focus:border-blue-500 outline-none hover:bg-slate-800 transition-colors"
               >
-                {projects.length === 0 && <option value="">لا توجد مشاريع</option>}
+                {projects.length === 0 && <option value="">No Projects</option>}
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
@@ -272,7 +267,7 @@ const App: React.FC = () => {
                   <button 
                     onClick={handleDeleteProject}
                     className="px-4 h-10 bg-slate-700/50 hover:bg-red-500/20 text-slate-300 hover:text-red-400 rounded-2xl flex items-center justify-center gap-2 transition-all border border-white/5 group"
-                    title="حذف المشروع الحالي"
+                    title="Delete Current Project"
                   >
                     <i className="fas fa-trash-alt"></i>
                   </button>
@@ -280,10 +275,10 @@ const App: React.FC = () => {
                   <button 
                     onClick={handleDeleteAllProjects}
                     className="px-4 h-10 bg-red-600 hover:bg-red-700 text-white rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/20"
-                    title="حذف كل المشاريع"
+                    title="Delete All Projects"
                   >
                     <i className="fas fa-bomb"></i>
-                    <span className="text-[10px] font-black hidden lg:inline">حذف الكل</span>
+                    <span className="text-[10px] font-black hidden lg:inline">Reset All</span>
                   </button>
                 </>
               )}
@@ -291,11 +286,11 @@ const App: React.FC = () => {
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
             <div className="flex bg-slate-800/50 rounded-2xl p-1 border border-white/5 shadow-inner">
-              <button onClick={() => setFilterType('ALL')} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === 'ALL' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>الكل</button>
-              <button onClick={() => setFilterType(NetworkType.WATER)} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === NetworkType.WATER ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>مياه</button>
-              <button onClick={() => setFilterType(NetworkType.SEWAGE)} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === NetworkType.SEWAGE ? 'bg-amber-600 text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>صرف</button>
+              <button onClick={() => setFilterType('ALL')} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === 'ALL' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>All</button>
+              <button onClick={() => setFilterType(NetworkType.WATER)} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === NetworkType.WATER ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>Water</button>
+              <button onClick={() => setFilterType(NetworkType.SEWAGE)} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === NetworkType.SEWAGE ? 'bg-amber-600 text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>Sewage</button>
             </div>
-            <button onClick={handleRunAudit} className="w-12 h-12 bg-white/5 hover:bg-blue-600 rounded-2xl flex items-center justify-center transition-all border border-white/5 shadow-xl hover:shadow-blue-500/20" title="تشغيل الفحص الهندسي الذكي">
+            <button onClick={handleRunAudit} className="w-12 h-12 bg-white/5 hover:bg-blue-600 rounded-2xl flex items-center justify-center transition-all border border-white/5 shadow-xl hover:shadow-blue-500/20" title="Run Smart Audit">
               <i className="fas fa-brain text-blue-400 group-hover:text-white"></i>
             </button>
           </div>
@@ -303,19 +298,18 @@ const App: React.FC = () => {
       </header>
 
       <main className="container mx-auto px-6 mt-10">
-        {/* إحصائيات المشروع - المطابقة للصورة تماماً */}
         <StatsPanel segments={filteredData.segments} points={filteredData.points} networkType={filterType} />
 
         {activeProject ? (
           <div className="space-y-12">
             
-            {/* الجزء العلوي: المخطط الهندسي (الخريطة) */}
+            {/* Top Section: Map */}
             <section id="map-section" className="w-full">
               {filterType === 'ALL' && splitViewData.water && splitViewData.sewage ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="w-full">
                     <NetworkMap 
-                      title="شبكة المياه"
+                      title="Water Network"
                       segments={splitViewData.water.segments} 
                       points={splitViewData.water.points} 
                       selectedType={NetworkType.WATER}
@@ -326,7 +320,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="w-full">
                     <NetworkMap 
-                      title="شبكة الصرف الصحي"
+                      title="Sewage Network"
                       segments={splitViewData.sewage.segments} 
                       points={splitViewData.sewage.points} 
                       selectedType={NetworkType.SEWAGE}
@@ -348,10 +342,10 @@ const App: React.FC = () => {
               )}
             </section>
 
-            {/* الجزء السفلي: البيانات والتحديثات */}
+            {/* Bottom Section: Data & Updates */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-10" id="data-and-updates">
               
-              {/* سجل البيانات (الجدول) */}
+              {/* Data Table */}
               <div className="xl:col-span-8">
                 <DataTable 
                   segments={filteredData.segments} 
@@ -363,7 +357,7 @@ const App: React.FC = () => {
                 />
               </div>
 
-              {/* لوحة التحديثات والإدارة */}
+              {/* Management & Logs */}
               <div className="xl:col-span-4 space-y-10">
                 <div id="management-section">
                   <ManagementPanel 
@@ -376,12 +370,12 @@ const App: React.FC = () => {
                   />
                 </div>
 
-                {/* السجل المباشر في الجانب */}
+                {/* Live Logs */}
                 <div className="bg-[#0f172a] rounded-[40px] p-8 text-white shadow-2xl border border-white/5 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-3xl"></div>
                   <h4 className="text-[11px] font-black mb-6 uppercase text-blue-400 tracking-widest flex items-center gap-2">
                     <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
-                    تحديثات الموقع الحية
+                    Live Site Updates
                   </h4>
                   <div className="space-y-5 max-h-[450px] overflow-y-auto custom-scrollbar pr-1">
                       {logs.length > 0 ? logs.map(log => (
@@ -395,7 +389,7 @@ const App: React.FC = () => {
                       )) : (
                         <div className="flex flex-col items-center justify-center py-20 opacity-30 grayscale">
                           <i className="fas fa-satellite-dish text-4xl mb-4"></i>
-                          <p className="text-[11px] font-black italic">بانتظار وصول بيانات...</p>
+                          <p className="text-[11px] font-black italic">Waiting for data...</p>
                         </div>
                       )}
                   </div>
@@ -406,10 +400,10 @@ const App: React.FC = () => {
         ) : (
           <div className="flex flex-col items-center justify-center py-32 opacity-50">
              <i className="fas fa-folder-open text-6xl text-slate-300 mb-6"></i>
-             <h3 className="text-xl font-black text-slate-400">لا توجد مشاريع نشطة</h3>
-             <p className="text-sm font-bold text-slate-400 mt-2">أنشئ مشروعاً جديداً للبدء</p>
+             <h3 className="text-xl font-black text-slate-400">No Active Projects</h3>
+             <p className="text-sm font-bold text-slate-400 mt-2">Create a new project to get started</p>
              <button onClick={() => setShowNewProjectModal(true)} className="mt-6 bg-blue-600 text-white px-8 py-3 rounded-2xl font-black text-xs hover:bg-blue-700 transition-all">
-                إنشاء مشروع
+                Create Project
              </button>
           </div>
         )}

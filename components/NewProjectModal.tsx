@@ -75,9 +75,11 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
       }
       const val = String(rawType).toUpperCase();
       
-      // 1. Fittings (Elbows, Tees, etc.)
+      // 1. Fittings (Elbows, Tees, Saddle, Reducer etc.)
       if (val.includes('ELBOW') || val.includes('BEND') || val.includes('كوع')) return PointType.ELBOW;
       if (val.includes('TEE') || val.includes('مشترك') || val.includes('T-PIECE')) return PointType.TEE;
+      if (val.includes('SADDLE') || val.includes('CLAMP') || val.includes('STRAP') || val.includes('سرج') || val.includes('مفتاح ربط')) return PointType.SADDLE;
+      if (val.includes('REDUCER') || val.includes('MASLOOB') || val.includes('مسلوب')) return PointType.REDUCER;
 
       // 2. Specific Valves (Air/Wash)
       if (val.includes('AIR') || val.includes('هواء')) return PointType.AIR_VALVE;
@@ -350,10 +352,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
 
     if (target === 'BOTH') {
         setLoading({ segments: true, points: true });
-        setStatusMsg({ segments: 'جاري المعالجة...', points: 'جاري المعالجة...' });
+        setStatusMsg({ segments: 'Processing...', points: 'Processing...' });
     } else {
         setLoading(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: true }));
-        setStatusMsg(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: 'جاري المعالجة...' }));
+        setStatusMsg(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: 'Processing...' }));
     }
     
     const extension = file.name.split('.').pop()?.toLowerCase();
@@ -389,8 +391,8 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
                     if (len === 0 && start.x !== 0 && end.x !== 0) {
                         len = calculateDistance(start, end);
                     }
-                    const nameVal = getFuzzyValue(r, ['Name', 'Segment Name', 'Pipe Name']) || `خط ${idx + 1}`;
-                    const contractorVal = getFuzzyValue(r, ['Contractor', 'Company']) || 'غير محدد';
+                    const nameVal = getFuzzyValue(r, ['Name', 'Segment Name', 'Pipe Name']) || `Pipe ${idx + 1}`;
+                    const contractorVal = getFuzzyValue(r, ['Contractor', 'Company']) || 'Unknown';
                     return {
                         id: `TAB-S-${idx}-${Date.now()}`,
                         name: String(nameVal),
@@ -408,7 +410,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
                 newPoints = rows.map((r, idx) => {
                     const x = parseFloatSafe(getFuzzyValue(r, ['Lon', 'Longitude', 'X', 'Easting']));
                     const y = parseFloatSafe(getFuzzyValue(r, ['Lat', 'Latitude', 'Y', 'Northing']));
-                    const nameVal = getFuzzyValue(r, ['Name', 'Point Name', 'Node Name']) || `نقطة ${idx + 1}`;
+                    const nameVal = getFuzzyValue(r, ['Name', 'Point Name', 'Node Name']) || `Point ${idx + 1}`;
                     
                     // Logic to extract Type from Excel
                     const rawType = getFuzzyValue(r, ['Type', 'Point Type', 'Class', 'Category', 'الصنف', 'النوع']);
@@ -530,10 +532,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
     } catch (err) {
       console.error(err);
       if (target === 'BOTH') {
-        setStatusMsg({ segments: 'خطأ في الملف', points: 'خطأ في الملف' });
+        setStatusMsg({ segments: 'File Error', points: 'File Error' });
         setLoading({ segments: false, points: false });
       } else {
-        setStatusMsg(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: 'خطأ في الملف أو الصيغة' }));
+        setStatusMsg(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: 'File or Format Error' }));
         setLoading(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: false }));
       }
     }
@@ -547,17 +549,17 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
       
       if (target === 'BOTH') {
           if (segs.length === 0 && pts.length === 0) {
-            setStatusMsg({ segments: 'لا توجد بيانات', points: 'تأكد من الملف' });
+            setStatusMsg({ segments: 'No Data Found', points: 'Check File' });
           } else {
             setStatusMsg({
-                segments: `تم قراءة ${segs.length} خط`,
-                points: `تم قراءة ${pts.length} نقطة`
+                segments: `Read ${segs.length} lines`,
+                points: `Read ${pts.length} points`
             });
           }
           setLoading({ segments: false, points: false });
       } else {
           const count = target === 'SEGMENTS' ? segs.length : pts.length;
-          const msg = count > 0 ? `تم قراءة ${count} عنصر بنجاح` : 'لم يتم العثور على عناصر';
+          const msg = count > 0 ? `Read ${count} items successfully` : 'No items found';
           setStatusMsg(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: msg }));
           setLoading(prev => ({ ...prev, [target === 'SEGMENTS' ? 'segments' : 'points']: false }));
       }
@@ -572,11 +574,11 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-md">
-      <div className="bg-white rounded-[40px] w-full max-w-2xl p-8 relative shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto custom-scrollbar" dir="rtl">
+      <div className="bg-white rounded-[40px] w-full max-w-2xl p-8 relative shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto custom-scrollbar" dir="ltr">
         <div className="flex justify-between items-start mb-6">
-          <div className="text-right">
-            <h3 className="text-2xl font-black text-slate-800">مشروع هندسي جديد</h3>
-            <p className="text-[10px] text-slate-400 font-black mt-1 uppercase tracking-widest">التسجيل الجغرافي للشبكة</p>
+          <div>
+            <h3 className="text-2xl font-black text-slate-800">New Engineering Project</h3>
+            <p className="text-[10px] text-slate-400 font-black mt-1 uppercase tracking-widest">Geospatial Network Registry</p>
           </div>
           <div className="bg-blue-50 border border-blue-100 px-4 py-2 rounded-2xl">
              <span className="text-[10px] font-black text-blue-400 block text-center mb-0.5">Project ID</span>
@@ -589,46 +591,46 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
           {auditResults && (
              <div className={`rounded-2xl p-4 border-2 ${auditResults.score > 80 ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
                 <div className="flex items-center justify-between mb-2">
-                   <h4 className="text-xs font-black text-slate-700">نتيجة الفحص الهندسي التلقائي</h4>
+                   <h4 className="text-xs font-black text-slate-700">Engineering Audit Result</h4>
                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${auditResults.score > 80 ? 'bg-green-200 text-green-800' : 'bg-amber-200 text-amber-800'}`}>
-                      جودة البيانات: {Math.round(auditResults.score)}%
+                      Data Quality: {Math.round(auditResults.score)}%
                    </span>
                 </div>
                 <div className="text-[10px] text-slate-500 font-bold">
                    {auditResults.issues.length === 0 
-                     ? "البيانات سليمة هندسياً وجاهزة للاعتماد." 
-                     : `تم اكتشاف ${auditResults.issues.length} ملاحظة هندسية (مثل خطوط مفصولة أو أطوال غير منطقية). يمكنك المتابعة ولكن يفضل مراجعة المصدر.`}
+                     ? "Data is topologically valid and ready." 
+                     : `Found ${auditResults.issues.length} engineering issues (e.g., disconnected lines). You may proceed but reviewing the source is recommended.`}
                 </div>
              </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-black text-slate-500">اسم المشروع</label>
+              <label className="text-xs font-black text-slate-500">Project Name</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-100 px-5 py-3 rounded-2xl text-sm font-bold focus:border-blue-500 outline-none transition-all" required />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black text-slate-500">موقع المنطقة</label>
+              <label className="text-xs font-black text-slate-500">Location</label>
               <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-100 px-5 py-3 rounded-2xl text-sm font-bold focus:border-blue-500 outline-none transition-all" required />
             </div>
           </div>
 
           <div className="space-y-2">
-             <label className="text-xs font-black text-slate-500 block">نوع الشبكة</label>
+             <label className="text-xs font-black text-slate-500 block">Network Type</label>
              <div className="grid grid-cols-2 gap-4">
                <div onClick={() => setProjectType(NetworkType.WATER)} className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${projectType === NetworkType.WATER ? 'bg-blue-50 border-blue-500' : 'bg-white border-slate-100'}`}>
-                 <span className={`block text-xs font-black ${projectType === NetworkType.WATER ? 'text-blue-700' : 'text-slate-500'}`}>شبكة مياه</span>
+                 <span className={`block text-xs font-black ${projectType === NetworkType.WATER ? 'text-blue-700' : 'text-slate-500'}`}>Water Network</span>
                </div>
                <div onClick={() => setProjectType(NetworkType.SEWAGE)} className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${projectType === NetworkType.SEWAGE ? 'bg-amber-50 border-amber-500' : 'bg-white border-slate-100'}`}>
-                 <span className={`block text-xs font-black ${projectType === NetworkType.SEWAGE ? 'text-amber-700' : 'text-slate-500'}`}>شبكة صرف صحي</span>
+                 <span className={`block text-xs font-black ${projectType === NetworkType.SEWAGE ? 'text-amber-700' : 'text-slate-500'}`}>Sewage Network</span>
                </div>
              </div>
           </div>
 
           <div className="space-y-4 pt-4 border-t border-slate-100">
-            <label className="text-xs font-black text-slate-500 block mb-2">طريقة الإدخال</label>
+            <label className="text-xs font-black text-slate-500 block mb-2">Input Method</label>
             <div className="grid grid-cols-5 gap-3">
-               <button type="button" onClick={() => setImportType('NONE')} className="p-3 rounded-2xl border-2 bg-slate-50 text-[10px] font-black">يدوي</button>
+               <button type="button" onClick={() => setImportType('NONE')} className="p-3 rounded-2xl border-2 bg-slate-50 text-[10px] font-black">Manual</button>
                <button type="button" onClick={() => setImportType('EXCEL')} className="p-3 rounded-2xl border-2 bg-green-50 text-[10px] font-black text-green-700">Excel / HTML</button>
                <button type="button" onClick={() => setImportType('CIVIL3D')} className="p-3 rounded-2xl border-2 bg-indigo-50 text-[10px] font-black text-indigo-700">Civil 3D</button>
                <button type="button" onClick={() => setImportType('SHAPEFILE')} className="p-3 rounded-2xl border-2 bg-amber-50 text-[10px] font-black text-amber-700">GIS (Zip)</button>
@@ -640,34 +642,34 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
             <div className={`grid ${importType === 'CIVIL3D' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} gap-4`}>
               {importType === 'CIVIL3D' ? (
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 mb-2 block">ملف المشروع الشامل (LandXML / DXF)</label>
+                  <label className="text-[10px] font-black text-slate-400 mb-2 block">Comprehensive Project File (LandXML / DXF)</label>
                   <input type="file" accept=".xml,.dxf" className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={(e) => handleFileChange(e, 'BOTH')} />
                   <div className="flex gap-4 mt-2">
                       <p className="text-[9px] text-blue-600 font-bold">{statusMsg.segments}</p>
                       <p className="text-[9px] text-amber-600 font-bold">{statusMsg.points}</p>
                   </div>
-                  <p className="text-[8px] text-slate-400 mt-1">يتم استخراج شبكة المواسير والنقاط من ملف واحد.</p>
+                  <p className="text-[8px] text-slate-400 mt-1">Pipes and structures are extracted from a single file.</p>
                 </div>
               ) : (
                 <>
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                        <label className="text-[10px] font-black text-slate-400 block">ملف الخطوط (Lines)</label>
+                        <label className="text-[10px] font-black text-slate-400 block">Segments File (Lines)</label>
                         {importType === 'EXCEL' && (
                            <button type="button" onClick={() => handleDownloadTemplate('SEGMENTS')} className="text-[9px] text-blue-500 hover:text-blue-700 font-black underline flex items-center gap-1">
-                             <i className="fas fa-download"></i> نموذج فارغ
+                             <i className="fas fa-download"></i> Template
                            </button>
                         )}
                     </div>
                     <input type="file" accept={importType === 'SHAPEFILE' ? ".zip,.geojson,.json" : importType === 'KMZ' ? ".kmz" : ".xlsx,.csv,.html,.htm"} className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={(e) => handleFileChange(e, 'SEGMENTS')} />
-                    <p className={`text-[9px] mt-1 font-bold ${statusMsg.segments.includes('ملاحظة') ? 'text-amber-600' : 'text-green-600'}`}>{statusMsg.segments}</p>
+                    <p className={`text-[9px] mt-1 font-bold ${statusMsg.segments.includes('Note') ? 'text-amber-600' : 'text-green-600'}`}>{statusMsg.segments}</p>
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                        <label className="text-[10px] font-black text-slate-400 block">ملف النقاط (Points)</label>
+                        <label className="text-[10px] font-black text-slate-400 block">Points File</label>
                         {importType === 'EXCEL' && (
                            <button type="button" onClick={() => handleDownloadTemplate('POINTS')} className="text-[9px] text-blue-500 hover:text-blue-700 font-black underline flex items-center gap-1">
-                             <i className="fas fa-download"></i> نموذج فارغ
+                             <i className="fas fa-download"></i> Template
                            </button>
                         )}
                     </div>
@@ -680,8 +682,8 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
           )}
 
           <div className="flex gap-4 pt-4">
-            <button type="submit" className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs hover:bg-blue-600 transition-all">حفظ المشروع</button>
-            <button type="button" onClick={onClose} className="px-6 bg-slate-100 text-slate-500 py-4 rounded-2xl font-black text-xs hover:bg-slate-200 transition-all">إلغاء</button>
+            <button type="submit" className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs hover:bg-blue-600 transition-all">Save Project</button>
+            <button type="button" onClick={onClose} className="px-6 bg-slate-100 text-slate-500 py-4 rounded-2xl font-black text-xs hover:bg-slate-200 transition-all">Cancel</button>
           </div>
         </form>
       </div>

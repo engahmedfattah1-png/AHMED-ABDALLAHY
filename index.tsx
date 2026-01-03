@@ -20,9 +20,9 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
 const initializeEnvironment = () => {
   if (typeof document === 'undefined') return;
 
-  // Set document metadata
-  document.documentElement.lang = "ar";
-  document.documentElement.dir = "rtl";
+  // Set document metadata - CHANGED TO ENGLISH/LTR
+  document.documentElement.lang = "en";
+  document.documentElement.dir = "ltr";
 
   // Inject Meta Viewport if missing
   if (!document.querySelector('meta[name="viewport"]')) {
@@ -57,7 +57,7 @@ const initializeEnvironment = () => {
     const warning = document.createElement('div');
     warning.id = 'file-warning';
     warning.style.cssText = "position: fixed; top: 0; left: 0; right: 0; background: #f59e0b; color: white; text-align: center; padding: 12px; z-index: 9999; font-weight: bold; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);";
-    warning.innerHTML = '<i class="fas fa-exclamation-triangle ml-2"></i> تنبيه: أنت تفتح الملف مباشرة. لكي تعمل الخريطة والذكاء الاصطناعي بشكل صحيح، يرجى تشغيل التطبيق عبر سيرفر محلي (Live Server).';
+    warning.innerHTML = '<i class="fas fa-exclamation-triangle ml-2"></i> Warning: Local file protocol detected. Map and AI features may be limited. Please use a local server.';
     document.body.prepend(warning);
   }
 };

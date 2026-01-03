@@ -22,6 +22,8 @@ export enum PointType {
   OIL_TRAP = 'OIL_TRAP',
   ELBOW = 'ELBOW',
   TEE = 'TEE',
+  SADDLE = 'SADDLE',
+  REDUCER = 'REDUCER',
 }
 
 export interface Coordinates {
