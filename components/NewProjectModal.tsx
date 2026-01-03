@@ -293,14 +293,34 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
   };
 
   const handleDownloadTemplate = (type: 'SEGMENTS' | 'POINTS') => {
-    const data = type === 'SEGMENTS' 
-      ? [{ Name: "Pipe 1", StartLat: 2423087, StartLon: 510669, EndLat: 2423187, EndLon: 510769, Length: 150, Type: "Water" }]
-      : [{ Name: "Valve 1", Lat: 2423087, Lon: 510669, Type: "Valve" }];
+    let data: any[] = [];
+
+    if (type === 'SEGMENTS') {
+        if (projectType === 'MIXED') {
+            data = [
+                { Name: "Water Pipe 01", StartLat: 2423087, StartLon: 510669, EndLat: 2423187, EndLon: 510769, Length: 150, Type: "Water" },
+                { Name: "Sewage Line 01", StartLat: 2423200, StartLon: 510800, EndLat: 2423300, EndLon: 510900, Length: 140, Type: "Sewage" }
+            ];
+        } else {
+            data = [{ Name: "Pipe 1", StartLat: 2423087, StartLon: 510669, EndLat: 2423187, EndLon: 510769, Length: 150, Type: projectType }];
+        }
+    } else {
+        if (projectType === 'MIXED') {
+            data = [
+                { Name: "Valve 01", Lat: 2423087, Lon: 510669, Type: "Valve" },
+                { Name: "Manhole 01", Lat: 2423200, Lon: 510800, Type: "Manhole" }
+            ];
+        } else if (projectType === NetworkType.SEWAGE) {
+            data = [{ Name: "Manhole 1", Lat: 2423087, Lon: 510669, Type: "Manhole" }];
+        } else {
+            data = [{ Name: "Valve 1", Lat: 2423087, Lon: 510669, Type: "Valve" }];
+        }
+    }
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, `${type === 'SEGMENTS' ? 'Segments' : 'Points'}_Template.xlsx`);
+    XLSX.writeFile(wb, `${type === 'SEGMENTS' ? 'Segments' : 'Points'}_${projectType}_Template.xlsx`);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
