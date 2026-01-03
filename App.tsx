@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { NetworkSegment, NetworkType, NetworkPoint, PointType, ProjectStatus, Project } from './types';
 import { MOCK_PROJECTS, WATER_ONLY_POINTS, SEWAGE_ONLY_POINTS } from './constants';
@@ -8,8 +7,10 @@ import DataTable from './components/SegmentTable';
 import ManagementPanel from './components/ManagementPanel';
 import ValidationModal from './components/ValidationModal';
 import NewProjectModal from './components/NewProjectModal';
+import CollaborationModal from './components/CollaborationModal';
 import { getProjectInsights } from './services/geminiService';
 import { runEngineeringAudit, AuditIssue } from './services/engineeringService';
+import { initFirebase, isFirebaseInitialized, subscribeToProjects, saveProjectToCloud, deleteProjectFromCloud, syncLocalDataToCloud } from './services/firebaseService';
 
 interface AuditEntry {
   id: string;
@@ -18,9 +19,25 @@ interface AuditEntry {
   type: 'UPDATE' | 'CREATE' | 'SYSTEM' | 'AUDIT';
 }
 
+// HARDCODED CONFIG FOR TEAM COLLABORATION
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD5aBMsHhh4CO4Ard61OGadIjeoxy4ZgQ0",
+  authDomain: "maham-e9c03.firebaseapp.com",
+  projectId: "maham-e9c03",
+  storageBucket: "maham-e9c03.firebasestorage.app",
+  messagingSenderId: "966870865584",
+  appId: "1:966870865584:web:2bda7bd549b37f768a0d75",
+  measurementId: "G-WKMKNXWDXB"
+};
+
 const App: React.FC = () => {
   const STORAGE_KEY = 'infra_projects_v9';
+  const FB_CONFIG_KEY = 'infra_firebase_config';
 
+  // --- STATE ---
+  const [isOnline, setIsOnline] = useState(false);
+  const [showCollabModal, setShowCollabModal] = useState(false);
+  
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -38,8 +55,77 @@ const App: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('infra_visited'));
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   
-  // State for focused location from validation
   const [mapFocusLocation, setMapFocusLocation] = useState<{x: number, y: number} | null>(null);
+
+  // --- ONLINE / OFFLINE LOGIC ---
+  useEffect(() => {
+    // 1. Try Default Config (Hardcoded) first for Team App
+    let success = initFirebase(DEFAULT_FIREBASE_CONFIG);
+    
+    // 2. If failed (unlikely), try local storage config
+    if (!success) {
+        const storedConfig = localStorage.getItem(FB_CONFIG_KEY);
+        if (storedConfig) {
+            try {
+                const config = JSON.parse(storedConfig);
+                success = initFirebase(config);
+            } catch (e) { console.error(e); }
+        }
+    }
+
+    if (success) {
+        setIsOnline(true);
+        addLog('Connected to Team Database (Auto)', 'SYSTEM');
+    }
+  }, []);
+
+  // Sync Listener - Separated to avoid infinite loops
+  useEffect(() => {
+    if (isOnline) {
+      const unsubscribe = subscribeToProjects((cloudProjects) => {
+        setProjects(cloudProjects);
+        // Ensure active project ID is still valid
+        setActiveProjectId(prev => {
+           if (!cloudProjects.find(p => p.id === prev) && cloudProjects.length > 0) {
+             return cloudProjects[0].id;
+           }
+           return prev;
+        });
+        // addLog('Data synced from cloud', 'SYSTEM'); // Reduced noise
+      });
+      return () => unsubscribe();
+    }
+  }, [isOnline]);
+
+  // Local Backup Effect
+  useEffect(() => {
+    if (!isOnline) {
+       localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    }
+  }, [projects, isOnline]);
+
+
+  const handleConnectToCloud = async (config: any) => {
+    const success = initFirebase(config);
+    if (success) {
+      localStorage.setItem(FB_CONFIG_KEY, JSON.stringify(config));
+      setIsOnline(true);
+      await syncLocalDataToCloud(projects);
+      addLog('Connected manually to Cloud', 'SYSTEM');
+      return true;
+    }
+    return false;
+  };
+
+  const handleDisconnect = () => {
+    if (window.confirm("Disconnect from Team Cloud? You will work offline.")) {
+      localStorage.removeItem(FB_CONFIG_KEY);
+      setIsOnline(false);
+      window.location.reload(); 
+    }
+  };
+
+  // --- DATA MANAGEMENT ---
 
   useEffect(() => {
     if (projects.length > 0) {
@@ -56,42 +142,24 @@ const App: React.FC = () => {
     projects.find(p => p.id === activeProjectId) || (projects.length > 0 ? projects[0] : undefined),
   [projects, activeProjectId]);
 
-  // Strict Filtering Logic to prevent mixing
   const filteredData = useMemo(() => {
     if (!activeProject) return { segments: [], points: [] };
-    
-    // Filter Segments (Straightforward via type property)
     const segments = activeProject.segments.filter(s => filterType === 'ALL' || s.type === filterType);
-    
-    // Filter Points (Strict check using constants)
     const points = activeProject.points.filter(p => {
       if (filterType === 'ALL') return true;
-      
-      if (filterType === NetworkType.WATER) {
-        return WATER_ONLY_POINTS.includes(p.type);
-      }
-      
-      if (filterType === NetworkType.SEWAGE) {
-        return SEWAGE_ONLY_POINTS.includes(p.type);
-      }
-      
+      if (filterType === NetworkType.WATER) return WATER_ONLY_POINTS.includes(p.type);
+      if (filterType === NetworkType.SEWAGE) return SEWAGE_ONLY_POINTS.includes(p.type);
       return false;
     });
-    
     return { segments, points };
   }, [activeProject, filterType]);
 
   const splitViewData = useMemo(() => {
     if (!activeProject || filterType !== 'ALL') return { water: null, sewage: null };
-    
     const waterSegments = activeProject.segments.filter(s => s.type === NetworkType.WATER);
-    // Strict Water Points
     const waterPoints = activeProject.points.filter(p => WATER_ONLY_POINTS.includes(p.type));
-    
     const sewageSegments = activeProject.segments.filter(s => s.type === NetworkType.SEWAGE);
-    // Strict Sewage Points
     const sewagePoints = activeProject.points.filter(p => SEWAGE_ONLY_POINTS.includes(p.type));
-    
     return {
       water: { segments: waterSegments, points: waterPoints },
       sewage: { segments: sewageSegments, points: sewagePoints }
@@ -103,10 +171,6 @@ const App: React.FC = () => {
   const [isAiAuditing, setIsAiAuditing] = useState(false);
   const [aiAuditComment, setAiAuditComment] = useState('');
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
-  }, [projects]);
-
   const addLog = (message: string, type: 'UPDATE' | 'CREATE' | 'SYSTEM' | 'AUDIT' = 'UPDATE') => {
     const newLog: AuditEntry = {
       id: Date.now().toString(),
@@ -115,6 +179,14 @@ const App: React.FC = () => {
       type
     };
     setLogs(prev => [newLog, ...prev.slice(0, 9)]);
+  };
+
+  const handleDataUpdate = (updatedProject: Project) => {
+    if (isOnline) {
+      saveProjectToCloud(updatedProject); 
+    } else {
+      setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    }
   };
 
   const handleAddNewProject = (id: string, name: string, location: string, importedSegments: NetworkSegment[], importedPoints: NetworkPoint[]) => {
@@ -126,7 +198,13 @@ const App: React.FC = () => {
       segments: importedSegments,
       points: importedPoints
     };
-    setProjects(prev => [...prev, newProject]);
+    
+    if (isOnline) {
+      saveProjectToCloud(newProject);
+    } else {
+      setProjects(prev => [...prev, newProject]);
+    }
+    
     setActiveProjectId(newProject.id);
     addLog(`Created new project: ${name} (${id})`, 'SYSTEM');
     setShowNewProjectModal(false);
@@ -134,31 +212,21 @@ const App: React.FC = () => {
 
   const handleDeleteProject = () => {
     if (!activeProject) return;
-    
     if (window.confirm(`Warning!\n\nAre you sure you want to delete project "${activeProject.name}"?\nAll associated data will be lost.`)) {
-      const projectToDeleteId = activeProject.id;
-      const updatedProjects = projects.filter(p => p.id !== projectToDeleteId);
-      
-      const nextProject = updatedProjects.length > 0 ? updatedProjects[0] : null;
-      
-      setProjects(updatedProjects);
-      setActiveProjectId(nextProject ? nextProject.id : '');
+      if (isOnline) {
+        deleteProjectFromCloud(activeProject.id);
+      } else {
+        const updatedProjects = projects.filter(p => p.id !== activeProject.id);
+        setProjects(updatedProjects);
+        const nextProject = updatedProjects.length > 0 ? updatedProjects[0] : null;
+        setActiveProjectId(nextProject ? nextProject.id : '');
+      }
       addLog(`Deleted project: ${activeProject.name}`, 'SYSTEM');
     }
   };
 
-  const handleDeleteAllProjects = () => {
-    if (window.confirm('CRITICAL WARNING!\n\nThis will delete ALL projects and data stored in the system.\nThis action cannot be undone.\n\nAre you sure?')) {
-      setProjects([]);
-      setActiveProjectId('');
-      setLogs([]);
-      localStorage.removeItem(STORAGE_KEY);
-      addLog('System reset: All projects deleted', 'SYSTEM');
-    }
-  };
-
   const handleRunAudit = async () => {
-    setMapFocusLocation(null); // Reset focus
+    setMapFocusLocation(null);
     const issues = runEngineeringAudit(filteredData.segments, filteredData.points);
     setAuditIssues(issues);
     setIsAuditOpen(true);
@@ -173,12 +241,7 @@ const App: React.FC = () => {
     }
   };
 
-  const updateActiveProjectData = (updatedSegments: NetworkSegment[], updatedPoints: NetworkPoint[]) => {
-    setProjects(prev => prev.map(p => 
-      p.id === activeProjectId ? { ...p, segments: updatedSegments, points: updatedPoints, lastUpdated: new Date().toISOString() } : p
-    ));
-  };
-
+  // Update Wrappers
   const updateSegmentProgress = (id: string, progress: number, userName: string) => {
     if (!activeProject) return;
     const timestamp = new Date().toLocaleString('en-US');
@@ -190,7 +253,7 @@ const App: React.FC = () => {
       }
       return s;
     });
-    updateActiveProjectData(updatedSegments, activeProject.points);
+    handleDataUpdate({ ...activeProject, segments: updatedSegments, lastUpdated: new Date().toISOString() });
   };
 
   const updatePointStatus = (id: string, status: ProjectStatus, userName: string) => {
@@ -203,7 +266,27 @@ const App: React.FC = () => {
       }
       return p;
     });
-    updateActiveProjectData(activeProject.segments, updatedPoints);
+    handleDataUpdate({ ...activeProject, points: updatedPoints, lastUpdated: new Date().toISOString() });
+  };
+
+  const updateAddSegment = (s: NetworkSegment) => {
+    if (!activeProject) return;
+    handleDataUpdate({ ...activeProject, segments: [...activeProject.segments, s], lastUpdated: new Date().toISOString() });
+  };
+
+  const updateAddPoint = (p: NetworkPoint) => {
+    if (!activeProject) return;
+    handleDataUpdate({ ...activeProject, points: [...activeProject.points, p], lastUpdated: new Date().toISOString() });
+  };
+
+  const updateBulkImport = (s: NetworkSegment[], p: NetworkPoint[]) => {
+    if (!activeProject) return;
+    handleDataUpdate({ 
+        ...activeProject, 
+        segments: [...activeProject.segments, ...s], 
+        points: [...activeProject.points, ...p],
+        lastUpdated: new Date().toISOString() 
+    });
   };
 
   const closeWelcome = () => {
@@ -245,6 +328,8 @@ const App: React.FC = () => {
 
       {/* Modals */}
       {showNewProjectModal && <NewProjectModal onSave={handleAddNewProject} onClose={() => setShowNewProjectModal(false)} />}
+      <CollaborationModal isOpen={showCollabModal} onClose={() => setShowCollabModal(false)} onConnect={handleConnectToCloud} />
+      
       <ValidationModal 
         isOpen={isAuditOpen} 
         onClose={() => setIsAuditOpen(false)} 
@@ -255,6 +340,9 @@ const App: React.FC = () => {
       />
 
       <header className="bg-[#0f172a] text-white shadow-2xl sticky top-0 z-50 border-b border-white/5 backdrop-blur-md bg-[#0f172a]/95">
+        {/* Network Status Bar */}
+        <div className={`h-1 w-full ${isOnline ? 'bg-gradient-to-r from-emerald-500 to-green-400' : 'bg-slate-700'}`}></div>
+        
         <div className="container mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto">
             <div className="flex items-center gap-3">
@@ -263,56 +351,68 @@ const App: React.FC = () => {
                 alt="Logo" 
                 className="h-12 w-auto bg-white/95 backdrop-blur rounded-xl p-1.5 shadow-lg object-contain"
               />
-              <div className="bg-blue-600 p-2.5 rounded-2xl cursor-pointer shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform" onClick={() => setShowNewProjectModal(true)} title="Add New Project">
-                <i className="fas fa-folder-plus text-xl text-white"></i>
-              </div>
               <div className="flex flex-col">
                 <h1 className="text-sm font-black tracking-widest text-blue-400 leading-none">Maham Al-Mithali Co.</h1>
                 <span className="text-[14px] font-black tracking-tighter text-white mt-1 uppercase">INFRA TRACK PRO</span>
               </div>
             </div>
+            
+            {/* Online/Offline Toggle */}
+            <div className="ml-4 flex items-center gap-2">
+                {isOnline ? (
+                    <button onClick={handleDisconnect} className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all group">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse group-hover:bg-red-400"></div>
+                        TEAM ONLINE
+                    </button>
+                ) : (
+                    <button onClick={() => setShowCollabModal(true)} className="bg-slate-700/50 border border-white/10 text-slate-400 px-3 py-1.5 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/30 transition-all">
+                        <i className="fas fa-plug text-xs"></i>
+                        CONNECT TEAM
+                    </button>
+                )}
+            </div>
+
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+            
             <div className="flex-1 flex gap-2">
               <select 
                 value={activeProjectId}
                 onChange={(e) => setActiveProjectId(e.target.value)}
-                className="flex-1 md:w-72 bg-slate-800/80 text-white border border-white/10 px-4 py-2.5 rounded-2xl text-[12px] font-black focus:border-blue-500 outline-none hover:bg-slate-800 transition-colors"
+                className="md:w-64 bg-slate-800/80 text-white border border-white/10 px-4 py-2.5 rounded-2xl text-[12px] font-black focus:border-blue-500 outline-none hover:bg-slate-800 transition-colors"
               >
                 {projects.length === 0 && <option value="">No Projects</option>}
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+
+              <div className="bg-blue-600 p-2.5 rounded-2xl cursor-pointer shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform shrink-0" onClick={() => setShowNewProjectModal(true)} title="Add New Project">
+                <i className="fas fa-plus text-white"></i>
+              </div>
               
               {projects.length > 0 && (
-                <>
                   <button 
                     onClick={handleDeleteProject}
-                    className="px-4 h-10 bg-slate-700/50 hover:bg-red-500/20 text-slate-300 hover:text-red-400 rounded-2xl flex items-center justify-center gap-2 transition-all border border-white/5 group"
-                    title="Delete Current Project"
+                    className="w-10 h-10 bg-slate-700/50 hover:bg-red-500/20 text-slate-300 hover:text-red-400 rounded-2xl flex items-center justify-center transition-all border border-white/5 shrink-0"
+                    title="Delete Project"
                   >
                     <i className="fas fa-trash-alt"></i>
                   </button>
-                  
-                  <button 
-                    onClick={handleDeleteAllProjects}
-                    className="px-4 h-10 bg-red-600 hover:bg-red-700 text-white rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/20"
-                    title="Delete All Projects"
-                  >
-                    <i className="fas fa-bomb"></i>
-                    <span className="text-[10px] font-black hidden lg:inline">Reset All</span>
-                  </button>
-                </>
               )}
             </div>
-          </div>
-          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+
+            <div className="w-px h-8 bg-white/10 mx-1"></div>
+
             <div className="flex bg-slate-800/50 rounded-2xl p-1 border border-white/5 shadow-inner">
-              <button onClick={() => setFilterType('ALL')} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === 'ALL' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>All</button>
-              <button onClick={() => setFilterType(NetworkType.WATER)} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === NetworkType.WATER ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>Water</button>
-              <button onClick={() => setFilterType(NetworkType.SEWAGE)} className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === NetworkType.SEWAGE ? 'bg-amber-600 text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>Sewage</button>
+              <button onClick={() => setFilterType('ALL')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === 'ALL' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>All</button>
+              <button onClick={() => setFilterType(NetworkType.WATER)} className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === NetworkType.WATER ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>Water</button>
+              <button onClick={() => setFilterType(NetworkType.SEWAGE)} className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${filterType === NetworkType.SEWAGE ? 'bg-amber-600 text-white shadow-xl' : 'text-slate-400 hover:text-white'}`}>Sewage</button>
             </div>
-            <button onClick={handleRunAudit} className="w-12 h-12 bg-white/5 hover:bg-blue-600 rounded-2xl flex items-center justify-center transition-all border border-white/5 shadow-xl hover:shadow-blue-500/20" title="Run Smart Audit">
-              <i className="fas fa-brain text-blue-400 group-hover:text-white"></i>
+            
+            <button onClick={handleRunAudit} className="w-10 h-10 bg-white/5 hover:bg-indigo-600 rounded-2xl flex items-center justify-center transition-all border border-white/5 shadow-xl hover:shadow-indigo-500/20 group" title="Run Smart Audit">
+              <i className="fas fa-brain text-indigo-400 group-hover:text-white"></i>
             </button>
           </div>
         </div>
@@ -385,9 +485,9 @@ const App: React.FC = () => {
                     segments={filteredData.segments} 
                     points={filteredData.points} 
                     onUpdateSegment={updateSegmentProgress} onUpdatePoint={updatePointStatus}
-                    onAddSegment={(s) => activeProject && updateActiveProjectData([...activeProject.segments, s], activeProject.points)}
-                    onAddPoint={(p) => activeProject && updateActiveProjectData(activeProject.segments, [...activeProject.points, p])}
-                    onBulkImport={(s, p) => activeProject && updateActiveProjectData([...activeProject.segments, ...s], [...activeProject.points, ...p])}
+                    onAddSegment={updateAddSegment}
+                    onAddPoint={updateAddPoint}
+                    onBulkImport={updateBulkImport}
                     initialSelection={managementSelection} currentFilterType={filterType}
                   />
                 </div>
@@ -396,8 +496,8 @@ const App: React.FC = () => {
                 <div className="bg-[#0f172a] rounded-[40px] p-8 text-white shadow-2xl border border-white/5 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-3xl"></div>
                   <h4 className="text-[11px] font-black mb-6 uppercase text-blue-400 tracking-widest flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
-                    Live Site Updates
+                    <div className={`w-2 h-2 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)] ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                    {isOnline ? 'Team Updates' : 'Local Updates'}
                   </h4>
                   <div className="space-y-5 max-h-[450px] overflow-y-auto custom-scrollbar pr-1">
                       {logs.length > 0 ? logs.map(log => (

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -11,14 +10,14 @@
   <link rel="apple-touch-icon" href="https://i.imgur.com/K5aE7Qk.png">
   <link rel="manifest" href="manifest.json">
   <title>InfraTrack - Network Monitoring System</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- CSS Dependencies -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
   
-  <!-- Leaflet CSS & JS -->
+  <!-- Leaflet CSS (Map) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
+  
   <style>
     body {
       font-family: 'Cairo', sans-serif;
@@ -27,60 +26,39 @@
     }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-    
-    #file-warning {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      background: #f59e0b;
-      color: white;
-      text-align: center;
-      padding: 12px;
-      z-index: 9999;
-      font-weight: bold;
-      font-size: 14px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
   </style>
 <script type="importmap">
 {
   "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
-    "react-dom": "https://esm.sh/react-dom@^19.2.3",
-    "react-dom/client": "https://esm.sh/react-dom@^19.2.3/client",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-    "recharts": "https://esm.sh/recharts@^3.6.0",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5",
-    "shpjs": "https://esm.sh/shpjs@4.0.4",
-    "jszip": "https://esm.sh/jszip@3.10.1",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/"
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "jszip": "https://esm.sh/jszip@^3.10.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "@capacitor/cli": "https://esm.sh/@capacitor/cli@^8.0.0",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "shpjs": "https://esm.sh/shpjs@^6.2.0",
+    "leaflet": "https://esm.sh/leaflet@^1.9.4"
   }
 }
 </script>
 </head>
 <body>
-  <div id="file-warning">
-    <i className="fas fa-exclamation-triangle ml-2"></i>
-    Warning: You are opening the file directly. For Map and AI to work correctly, please serve this via a local server (e.g., Live Server).
-  </div>
-  
   <div id="root"></div>
 
   <script>
-    // Check file protocol
-    if (window.location.protocol === 'file:') {
-      document.getElementById('file-warning').style.display = 'block';
-    }
-
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Service Worker Registered'))
           .catch(err => console.log('SW failed', err));
       });
     }
   </script>
-  <script type="module" src="./index.tsx"></script>
+  
+  <!-- MAIN ENTRY POINT -->
+  <script type="module" src="/index.tsx"></script>
 </body>
 </html>

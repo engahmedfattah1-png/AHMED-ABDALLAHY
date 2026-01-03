@@ -27,8 +27,8 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ segments, points, networkType }
 
   // Sort types by count descending
   const sortedTypes = Object.entries(typeCounts)
-    .sort(([, a], [, b]) => b - a)
-    .map(([type, count]) => ({ type: type as PointType, count }));
+    .sort(([, a], [, b]) => (b as number) - (a as number))
+    .map(([type, count]) => ({ type: type as PointType, count: count as number }));
 
   // SVG Configuration
   const radius = 38;
