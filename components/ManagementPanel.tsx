@@ -38,6 +38,11 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
   const [easting, setEasting] = useState(638000);
   const [northing, setNorthing] = useState(3324000);
 
+  // Password Protection State
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+
   useEffect(() => {
     if (initialSelection) {
       setMainMode('UPDATE');
@@ -112,8 +117,74 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
 
   const getStatusColor = (s: ProjectStatus) => STATUS_COLORS[s];
 
+  // --- Password & Verification Logic ---
+  const initiateUpdate = () => {
+    setIsPasswordModalOpen(true);
+    setPasswordInput('');
+    setPasswordError(false);
+  };
+
+  const confirmUpdateWithPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === '123456') {
+      if (subMode === 'SEGMENT') {
+        onUpdateSegment(selectedSegmentId, segmentProgress, updaterName);
+      } else {
+        onUpdatePoint(selectedPointId, pointStatus, updaterName);
+      }
+      setIsPasswordModalOpen(false);
+    } else {
+      setPasswordError(true);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+    <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 relative">
+      
+      {/* Password Modal (Fixed Overlay) */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 relative overflow-hidden">
+             
+             {/* Decorative header */}
+             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+
+             <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20 ring-4 ring-blue-50/50">
+                   <i className="fas fa-fingerprint text-3xl"></i>
+                </div>
+                <h4 className="text-lg font-black text-slate-800">تأكيد العملية</h4>
+                <p className="text-xs text-slate-400 font-bold mt-1">هذا الإجراء محمي، يرجى إدخال رمز المهندس</p>
+             </div>
+             
+             <form onSubmit={confirmUpdateWithPassword} className="space-y-4">
+               <div>
+                 <input 
+                   type="password" 
+                   value={passwordInput}
+                   onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(false); }}
+                   className={`w-full bg-slate-50 border-2 px-4 py-4 rounded-2xl text-center font-black tracking-[0.5em] text-xl outline-none transition-all placeholder:tracking-normal placeholder:font-bold placeholder:text-sm ${passwordError ? 'border-red-500 bg-red-50 text-red-900 animate-pulse' : 'border-slate-100 focus:border-blue-500 focus:bg-white focus:shadow-md'}`}
+                   placeholder="******"
+                   autoFocus
+                   maxLength={6}
+                 />
+                 {passwordError && (
+                   <div className="flex items-center justify-center gap-2 mt-2 text-red-500 animate-in slide-in-from-top-1">
+                     <i className="fas fa-exclamation-circle text-xs"></i>
+                     <span className="text-[10px] font-black">رمز المرور غير صحيح</span>
+                   </div>
+                 )}
+               </div>
+               
+               <div className="grid grid-cols-2 gap-3 pt-2">
+                 <button type="button" onClick={() => setIsPasswordModalOpen(false)} className="px-4 py-3 bg-slate-100 text-slate-500 rounded-xl font-black text-xs hover:bg-slate-200 transition-all">إلغاء</button>
+                 <button type="submit" className="px-4 py-3 bg-blue-600 text-white rounded-xl font-black text-xs hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all">تأكيد</button>
+               </div>
+             </form>
+          </div>
+        </div>
+      )}
+
       <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
         <div className="flex bg-slate-200 p-1 rounded-xl w-full">
           <button onClick={() => setMainMode('UPDATE')} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${mainMode === 'UPDATE' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>تحديث الحالة</button>
@@ -209,13 +280,11 @@ const ManagementPanel: React.FC<ManagementPanelProps> = ({
                  )}
 
                  <button 
-                   onClick={() => {
-                     if (subMode === 'SEGMENT') onUpdateSegment(selectedSegmentId, segmentProgress, updaterName);
-                     else onUpdatePoint(selectedPointId, pointStatus, updaterName);
-                   }} 
-                   className="w-full bg-slate-900 text-white py-4 rounded-xl font-black text-xs shadow-lg hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                   onClick={initiateUpdate} 
+                   className="w-full bg-slate-900 text-white py-4 rounded-xl font-black text-xs shadow-lg hover:bg-blue-600 transition-all flex items-center justify-center gap-2 group"
                  >
-                   <i className="fas fa-check-double"></i> تأكيد التحديث
+                   <i className="fas fa-shield-alt text-blue-400 group-hover:text-white transition-colors"></i>
+                   <span>حفظ وتحديث البيانات</span>
                  </button>
               </div>
             )}

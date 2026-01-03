@@ -27,7 +27,6 @@ const createWaterLoop = (pid: string, startLat: number, startLon: number): { seg
   const p1 = movePoint(p0, 400, 0); // East 400m
   const p2 = movePoint(p1, 0, 400); // North 400m
   const p3 = movePoint(p0, 0, 400); // North 400m (from start) -> TopLeft
-  // Wait, correct logic for p3 to close box is x=startLon, y=startLat+400m
   
   const nodes = [p0, p1, p2, p3]; // 0:BL, 1:BR, 2:TR, 3:TL
 
@@ -167,8 +166,7 @@ const createLogisticNetwork = (pid: string, startLat: number, startLon: number):
     
     for(let i=0; i<5; i++) {
         const start = movePoint({x: startLon, y: startLat}, i*100, 0);
-        const end = movePoint(start, 100, 0); // short parallel lines? No, looks like series.
-        // Actually logistic grid usually parallel. Let's do horizontal lines stacked vertically.
+        const end = movePoint(start, 100, 0); 
         
         const lineStart = movePoint({x: startLon, y: startLat}, 0, i * 50);
         const lineEnd = movePoint(lineStart, 300, 0);
@@ -187,11 +185,19 @@ const createLogisticNetwork = (pid: string, startLat: number, startLon: number):
         
         if(i % 2 === 0) {
             points.push({
-                id: `${pid}-FH-${i}`,
-                name: `حنفية حريق صناعية ${i}`,
-                type: PointType.FIRE_HYDRANT,
+                id: `${pid}-AV-${i}`,
+                name: `محبس هواء ${i}`,
+                type: PointType.AIR_VALVE,
                 status: ProjectStatus.COMPLETED,
                 location: lineStart
+            });
+        } else {
+             points.push({
+                id: `${pid}-WV-${i}`,
+                name: `محبس غسيل ${i}`,
+                type: PointType.WASH_VALVE,
+                status: ProjectStatus.COMPLETED,
+                location: lineEnd
             });
         }
         
@@ -212,9 +218,9 @@ const createLogisticNetwork = (pid: string, startLat: number, startLon: number):
         });
 
         points.push({
-            id: `${pid}-MH-${i}`,
-            name: `منهل صرف ثقيل ${i}`,
-            type: PointType.MANHOLE,
+            id: `${pid}-TRAP-${i}`,
+            name: `مصيدة زيوت ${i}`,
+            type: PointType.OIL_TRAP,
             status: i > 2 ? ProjectStatus.PENDING : ProjectStatus.COMPLETED,
             location: sewStart
         });
@@ -277,4 +283,9 @@ export const POINT_LABELS: Record<PointType, string> = {
   [PointType.VALVE]: 'محبس تحكم',
   [PointType.FIRE_HYDRANT]: 'حنفية حريق',
   [PointType.WATER_HOUSE_CONNECTION]: 'عداد مياه',
+  [PointType.AIR_VALVE]: 'محبس هواء',
+  [PointType.WASH_VALVE]: 'محبس غسيل',
+  [PointType.OIL_TRAP]: 'مصيدة زيوت',
+  [PointType.ELBOW]: 'كوع',
+  [PointType.TEE]: 'مشترك',
 };

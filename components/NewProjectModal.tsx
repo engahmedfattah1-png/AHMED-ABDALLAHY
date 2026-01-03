@@ -68,6 +68,45 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
     return undefined;
   };
 
+  // Helper to detect type from string
+  const detectPointType = (rawType: any, projectNetworkType: NetworkType): PointType => {
+      if (!rawType) {
+          return projectNetworkType === NetworkType.WATER ? PointType.VALVE : PointType.MANHOLE;
+      }
+      const val = String(rawType).toUpperCase();
+      
+      // 1. Fittings (Elbows, Tees, etc.)
+      if (val.includes('ELBOW') || val.includes('BEND') || val.includes('كوع')) return PointType.ELBOW;
+      if (val.includes('TEE') || val.includes('مشترك') || val.includes('T-PIECE')) return PointType.TEE;
+
+      // 2. Specific Valves (Air/Wash)
+      if (val.includes('AIR') || val.includes('هواء')) return PointType.AIR_VALVE;
+      if (val.includes('WASH') || val.includes('غسيل')) return PointType.WASH_VALVE;
+      
+      // 3. Traps & Oil
+      if (val.includes('TRAP') || val.includes('OIL') || val.includes('مصيدة') || val.includes('زيوت')) return PointType.OIL_TRAP;
+
+      // 4. Fire Hydrants
+      if (val.includes('FIRE') || val.includes('HYDRANT') || val.includes('حريق') || val.includes('طفاية') || val.includes('طفايه')) return PointType.FIRE_HYDRANT;
+
+      // 5. Inspection Chambers
+      if (val.includes('INSPECTION') || val.includes('CHAMBER') || val.includes('تفتيش')) return PointType.INSPECTION_CHAMBER;
+
+      // 6. House Connections (Supports spelling variations)
+      if (val.includes('HOUSE') || val.includes('CONN') || val.includes('وصلة') || val.includes('وصله') || val.includes('منزلية') || val.includes('منزليه')) {
+          return projectNetworkType === NetworkType.WATER ? PointType.WATER_HOUSE_CONNECTION : PointType.SEWAGE_HOUSE_CONNECTION;
+      }
+
+      // 7. Generic Manhole
+      if (val.includes('MANHOLE') || val.includes('MAN') || val.includes('منهل') || val.includes('بالوعة')) return PointType.MANHOLE;
+
+      // 8. Generic Valve
+      if (val.includes('VALVE') || val.includes('VLV') || val.includes('محبس') || val.includes('صمام')) return PointType.VALVE;
+      
+      // Default fallback based on project type
+      return projectNetworkType === NetworkType.WATER ? PointType.VALVE : PointType.MANHOLE;
+  };
+
   const parseFloatSafe = (val: any): number => {
     if (typeof val === 'number') return val;
     if (typeof val === 'string') {
@@ -80,9 +119,6 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
 
   // --- UTM Conversion Helper ---
   const processCoordinates = (x: number, y: number): { x: number, y: number } => {
-    // If coordinates are large (e.g. > 180), assume UTM.
-    // Defaulting to Zone 37N (common for Western Saudi Arabia - Jeddah/Makkah/Taif).
-    // Zone 38N is for Riyadh/East.
     if ((x > 180 || y > 90) && (window as any).proj4) {
       try {
         const utm37n = "+proj=utm +zone=37 +ellps=WGS84 +datum=WGS84 +units=m +no_defs";
@@ -116,7 +152,6 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
             if (startNode && endNode && startNode.textContent && endNode.textContent) {
                 const startParts = startNode.textContent.replace(/,/g, ' ').trim().split(/\s+/).map(Number);
                 const endParts = endNode.textContent.replace(/,/g, ' ').trim().split(/\s+/).map(Number);
-                // LandXML often uses Y X (Northing Easting)
                 if (startParts.length >= 2 && endParts.length >= 2) {
                     const sRaw = processCoordinates(startParts[1], startParts[0]);
                     const eRaw = processCoordinates(endParts[1], endParts[0]);
@@ -136,6 +171,9 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
         for (let i = 0; i < structs.length; i++) {
             const st = structs[i];
             const name = st.getAttribute("name") || `Struct-${i}`;
+            const desc = st.getAttribute("desc") || "";
+            const detectedType = detectPointType(desc + " " + name, projectType);
+
             const center = st.getElementsByTagName("Center")[0];
             if (center && center.textContent) {
                 const parts = center.textContent.replace(/,/g, ' ').trim().split(/\s+/).map(Number);
@@ -143,7 +181,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
                      const pRaw = processCoordinates(parts[1], parts[0]);
                      points.push({
                          id: `XML-P-${i}-${Date.now()}`,
-                         name, type: projectType === NetworkType.WATER ? PointType.VALVE : PointType.MANHOLE,
+                         name, type: detectedType,
                          status: ProjectStatus.PENDING, location: pRaw
                      });
                 }
@@ -151,6 +189,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
         }
       } catch (e) { console.error("LandXML Parsing Error:", e); }
     } else { 
+      // DXF parsing remains largely the same basic structure
       const lines = text.split(/\r?\n/);
       let section = '';
       let entityType = '';
@@ -273,13 +312,18 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
          if (f.geometry?.type === 'Point') {
              const props = f.properties || {};
              const featureName = props.Name || props.name || props.NAME || props.id || props.ID || `GIS-Pt-${idx}`;
+             
+             // Detect Type from properties
+             const rawType = props.Type || props.type || props.TYPE || props.Class || featureName;
+             const pType = detectPointType(rawType, projectType);
+
              const c = f.geometry.coordinates;
              if (c && !isNaN(c[0]) && !isNaN(c[1])) {
                  const pRaw = processCoordinates(c[0], c[1]);
                  points.push({
                      id: `GIS-P-${idx}-${Date.now()}`,
                      name: String(featureName),
-                     type: projectType === NetworkType.WATER ? PointType.VALVE : PointType.MANHOLE,
+                     type: pType,
                      status: ProjectStatus.PENDING,
                      location: pRaw
                  });
@@ -366,12 +410,16 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
                     const y = parseFloatSafe(getFuzzyValue(r, ['Lat', 'Latitude', 'Y', 'Northing']));
                     const nameVal = getFuzzyValue(r, ['Name', 'Point Name', 'Node Name']) || `نقطة ${idx + 1}`;
                     
+                    // Logic to extract Type from Excel
+                    const rawType = getFuzzyValue(r, ['Type', 'Point Type', 'Class', 'Category', 'الصنف', 'النوع']);
+                    const pType = detectPointType(rawType, projectType);
+
                     const pRaw = processCoordinates(x, y);
 
                     return {
                         id: `TAB-P-${idx}-${Date.now()}`,
                         name: String(nameVal),
-                        type: projectType === NetworkType.WATER ? PointType.VALVE : PointType.MANHOLE,
+                        type: pType,
                         status: ProjectStatus.PENDING,
                         location: pRaw
                     };
@@ -435,10 +483,14 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({ onSave, onClose }) =>
                     const parts = coordsRaw?.replace(/\s+/g, '').split(',').map(Number);
                     if (parts && !isNaN(parts[0])) {
                         const pRaw = processCoordinates(parts[0], parts[1]);
+                        const name = p.getElementsByTagName("name")[0]?.textContent || `Point-${i}`;
+                        const desc = p.getElementsByTagName("description")[0]?.textContent || "";
+                        // Detect type from KML name or description
+                        const pType = detectPointType(name + " " + desc, projectType);
+
                         newPoints.push({
                             id: `KMZ-P-${i}-${Date.now()}`,
-                            name: p.getElementsByTagName("name")[0]?.textContent || `Point-${i}`,
-                            type: projectType === NetworkType.WATER ? PointType.VALVE : PointType.MANHOLE,
+                            name, type: pType,
                             status: ProjectStatus.PENDING,
                             location: pRaw
                         });

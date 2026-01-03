@@ -44,6 +44,42 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
     return undefined;
   };
 
+  // Helper to detect type from string
+  const detectPointType = (rawType: any): PointType => {
+      if (!rawType) return PointType.MANHOLE; // Default fallback if no type
+      const val = String(rawType).toUpperCase();
+      
+      // 1. Fittings (Elbows, Tees, etc.)
+      if (val.includes('ELBOW') || val.includes('BEND') || val.includes('كوع')) return PointType.ELBOW;
+      if (val.includes('TEE') || val.includes('مشترك') || val.includes('T-PIECE')) return PointType.TEE;
+
+      // 2. Specific Valves (Air/Wash)
+      if (val.includes('AIR') || val.includes('هواء')) return PointType.AIR_VALVE;
+      if (val.includes('WASH') || val.includes('غسيل')) return PointType.WASH_VALVE;
+      
+      // 3. Traps & Oil
+      if (val.includes('TRAP') || val.includes('OIL') || val.includes('مصيدة') || val.includes('زيوت')) return PointType.OIL_TRAP;
+
+      // 4. Fire Hydrants
+      if (val.includes('FIRE') || val.includes('HYDRANT') || val.includes('حريق') || val.includes('طفاية') || val.includes('طفايه')) return PointType.FIRE_HYDRANT;
+
+      // 5. Inspection Chambers
+      if (val.includes('INSPECTION') || val.includes('CHAMBER') || val.includes('تفتيش')) return PointType.INSPECTION_CHAMBER;
+
+      // 6. House Connections
+      if (val.includes('HOUSE') || val.includes('CONN') || val.includes('وصلة') || val.includes('وصله') || val.includes('منزلية') || val.includes('منزليه')) {
+          return val.includes('WATER') ? PointType.WATER_HOUSE_CONNECTION : PointType.SEWAGE_HOUSE_CONNECTION;
+      }
+
+      // 7. Generic Manhole
+      if (val.includes('MANHOLE') || val.includes('MAN') || val.includes('منهل') || val.includes('بالوعة')) return PointType.MANHOLE;
+
+      // 8. Generic Valve
+      if (val.includes('VALVE') || val.includes('VLV') || val.includes('محبس') || val.includes('صمام')) return PointType.VALVE;
+
+      return PointType.MANHOLE;
+  };
+
   const parseFloatSafe = (val: any): number => {
     if (typeof val === 'number') return val;
     if (typeof val === 'string') {
@@ -118,10 +154,13 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
             }
         } else if (f.geometry?.type === 'Point') {
             const pRaw = processCoordinates(f.geometry.coordinates[0], f.geometry.coordinates[1]);
+            const rawType = props.Type || props.type || props.Class || name;
+            const pType = detectPointType(rawType);
+
             points.push({
                 id: `GIS-P-${idx}-${Date.now()}`,
                 name: String(name),
-                type: PointType.MANHOLE, // Default
+                type: pType, 
                 status: ProjectStatus.PENDING,
                 location: pRaw
             });
@@ -175,6 +214,9 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
     for (let i = 0; i < structs.length; i++) {
         const st = structs[i];
         const name = st.getAttribute("name") || `C3D-MH-${i}`;
+        const desc = st.getAttribute("desc") || "";
+        const pType = detectPointType(name + " " + desc);
+
         const center = st.getElementsByTagName("Center")[0];
         if (center && center.textContent) {
             const parts = center.textContent.replace(/,/g, ' ').trim().split(/\s+/).map(Number);
@@ -183,7 +225,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
                  points.push({
                      id: `C3D-P-${i}-${Date.now()}`,
                      name: name,
-                     type: PointType.MANHOLE,
+                     type: pType,
                      status: ProjectStatus.PENDING,
                      location: pRaw
                  });
@@ -352,8 +394,33 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
           };
         }).filter(s => s.startNode.x !== 0 || s.startNode.y !== 0);
 
-        onImported(segments, []);
-        setStatusMsg(`تم استيراد ${segments.length} خط بنجاح`);
+        // Import Points with Type detection
+        // Note: The previous logic assumed only segments from Excel in ImportPanel (because template was split)
+        // We will try to extract points if coords exist and single lat/lon
+        const points: NetworkPoint[] = rows.map((r, idx) => {
+             const x = parseFloatSafe(getFuzzyValue(r, ['Lon', 'Longitude', 'X', 'Easting']));
+             const y = parseFloatSafe(getFuzzyValue(r, ['Lat', 'Latitude', 'Y', 'Northing']));
+             
+             if (x !== 0 && y !== 0) {
+                 const nameVal = getFuzzyValue(r, ['Name', 'Point Name', 'Node Name']) || `نقطة مستوردة ${idx}`;
+                 const rawType = getFuzzyValue(r, ['Type', 'Point Type', 'Class', 'Category', 'الصنف', 'النوع']);
+                 const pType = detectPointType(rawType);
+                 const pRaw = processCoordinates(x, y);
+
+                 return {
+                    id: `XL-P-${idx}-${Date.now()}`,
+                    name: String(nameVal),
+                    type: pType,
+                    status: ProjectStatus.PENDING,
+                    location: pRaw
+                 };
+             }
+             return null;
+        }).filter(p => p !== null) as NetworkPoint[];
+
+
+        onImported(segments, points);
+        setStatusMsg(`تم استيراد ${segments.length} خط و ${points.length} نقطة`);
       } 
       else if (extension === 'kmz') {
         const buffer = await file.arrayBuffer();
@@ -371,6 +438,8 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
         for (let i = 0; i < placemarks.length; i++) {
             const p = placemarks[i];
             const name = p.getElementsByTagName("name")[0]?.textContent || `عنصر KMZ ${i}`;
+            const desc = p.getElementsByTagName("description")[0]?.textContent || "";
+
             const lineString = p.getElementsByTagName("LineString")[0];
             if (lineString) {
                 const coordsRaw = lineString.getElementsByTagName("coordinates")[0]?.textContent?.trim();
@@ -402,10 +471,12 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported }) => {
                 if (coordsRaw) {
                     const parts = coordsRaw.replace(/\s+/g, '').split(',').map(Number);
                     const pRaw = processCoordinates(parts[0], parts[1]);
+                    const pType = detectPointType(name + " " + desc);
+
                     points.push({
                         id: `KMZ-P-${i}`,
                         name,
-                        type: PointType.MANHOLE,
+                        type: pType,
                         status: ProjectStatus.PENDING,
                         location: pRaw
                     });

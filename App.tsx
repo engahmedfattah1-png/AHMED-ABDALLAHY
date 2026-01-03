@@ -40,6 +40,9 @@ const App: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('infra_visited'));
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   
+  // State for focused location from validation
+  const [mapFocusLocation, setMapFocusLocation] = useState<{x: number, y: number} | null>(null);
+
   // التأكد من أن activeProjectId صالح دائماً
   useEffect(() => {
     if (projects.length > 0) {
@@ -143,6 +146,7 @@ const App: React.FC = () => {
   };
 
   const handleRunAudit = async () => {
+    setMapFocusLocation(null); // Reset focus
     const issues = runEngineeringAudit(filteredData.segments, filteredData.points);
     setAuditIssues(issues);
     setIsAuditOpen(true);
@@ -200,6 +204,12 @@ const App: React.FC = () => {
     document.getElementById('management-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleLocateIssue = (location: { x: number, y: number }) => {
+    setMapFocusLocation(location);
+    // Smooth scroll to map
+    document.getElementById('map-section')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-[#f1f5f9] pb-12 font-sans overflow-x-hidden" dir="rtl">
       
@@ -224,7 +234,14 @@ const App: React.FC = () => {
 
       {/* Modals */}
       {showNewProjectModal && <NewProjectModal onSave={handleAddNewProject} onClose={() => setShowNewProjectModal(false)} />}
-      <ValidationModal isOpen={isAuditOpen} onClose={() => setIsAuditOpen(false)} issues={auditIssues} isAiAnalyzing={isAiAuditing} aiComment={aiAuditComment} />
+      <ValidationModal 
+        isOpen={isAuditOpen} 
+        onClose={() => setIsAuditOpen(false)} 
+        issues={auditIssues} 
+        isAiAnalyzing={isAiAuditing} 
+        aiComment={aiAuditComment}
+        onLocateIssue={handleLocateIssue}
+      />
 
       <header className="bg-[#0f172a] text-white shadow-2xl sticky top-0 z-50 border-b border-white/5 backdrop-blur-md bg-[#0f172a]/95">
         <div className="container mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -303,7 +320,8 @@ const App: React.FC = () => {
                       points={splitViewData.water.points} 
                       selectedType={NetworkType.WATER}
                       onSegmentClick={(seg) => handleSelection('SEGMENT', seg.id)} 
-                      onPointClick={(pt) => handleSelection('POINT', pt.id)} 
+                      onPointClick={(pt) => handleSelection('POINT', pt.id)}
+                      focusLocation={mapFocusLocation}
                     />
                   </div>
                   <div className="w-full">
@@ -314,6 +332,7 @@ const App: React.FC = () => {
                       selectedType={NetworkType.SEWAGE}
                       onSegmentClick={(seg) => handleSelection('SEGMENT', seg.id)} 
                       onPointClick={(pt) => handleSelection('POINT', pt.id)} 
+                      focusLocation={mapFocusLocation}
                     />
                   </div>
                 </div>
@@ -324,6 +343,7 @@ const App: React.FC = () => {
                   selectedType={filterType} 
                   onSegmentClick={(seg) => handleSelection('SEGMENT', seg.id)} 
                   onPointClick={(pt) => handleSelection('POINT', pt.id)} 
+                  focusLocation={mapFocusLocation}
                 />
               )}
             </section>

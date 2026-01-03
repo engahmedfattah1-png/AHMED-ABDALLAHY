@@ -17,6 +17,11 @@ export enum PointType {
   VALVE = 'VALVE',
   FIRE_HYDRANT = 'FIRE_HYDRANT',
   WATER_HOUSE_CONNECTION = 'WATER_HOUSE_CONNECTION',
+  AIR_VALVE = 'AIR_VALVE',
+  WASH_VALVE = 'WASH_VALVE',
+  OIL_TRAP = 'OIL_TRAP',
+  ELBOW = 'ELBOW',
+  TEE = 'TEE',
 }
 
 export interface Coordinates {

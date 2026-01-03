@@ -13,12 +13,15 @@ interface NetworkMapProps {
   onSegmentClick: (segment: NetworkSegment) => void;
   onPointClick: (point: NetworkPoint) => void;
   title?: string;
+  focusLocation?: { x: number, y: number } | null; // New prop for zoom interaction
 }
 
-const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType, onSegmentClick, onPointClick, title }) => {
+const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType, onSegmentClick, onPointClick, title, focusLocation }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const layerGroupRef = useRef<any>(null);
+  const focusLayerRef = useRef<any>(null); // Layer for the "focus" marker
+
   // Changed default state from 'SATELLITE' to 'STREETS'
   const [mapStyle, setMapStyle] = useState<'SATELLITE' | 'STREETS'>('STREETS');
 
@@ -34,12 +37,60 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType,
       
       mapInstanceRef.current = map;
       layerGroupRef.current = L.layerGroup().addTo(map);
+      focusLayerRef.current = L.layerGroup().addTo(map);
     }
 
     return () => {
       // Cleanup if needed
     };
   }, []);
+
+  // Handle Focus Location Change (FlyTo)
+  useEffect(() => {
+    if (focusLocation && mapInstanceRef.current && focusLayerRef.current) {
+        const { x, y } = focusLocation; // x=Lon, y=Lat
+        const latLng = [y, x];
+        
+        // Fly to location
+        mapInstanceRef.current.flyTo(latLng, 19, {
+            duration: 1.5
+        });
+
+        // Add a pulsing marker
+        focusLayerRef.current.clearLayers();
+        
+        // Create a custom pulsing icon using CSS (injected via divIcon)
+        const pulsingIcon = L.divIcon({
+            className: 'custom-pulse-marker',
+            html: `<div style="
+                width: 20px;
+                height: 20px;
+                background: rgba(239, 68, 68, 0.6);
+                border-radius: 50%;
+                border: 3px solid #fff;
+                box-shadow: 0 0 0 rgba(239, 68, 68, 0.4);
+                animation: leaflet-pulse 1.5s infinite;
+            "></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+
+        L.marker(latLng, { icon: pulsingIcon }).addTo(focusLayerRef.current);
+        
+        // Also add a temporary circle
+        const circle = L.circle(latLng, {
+            radius: 5,
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.3
+        }).addTo(focusLayerRef.current);
+
+        // Remove marker after 5 seconds
+        setTimeout(() => {
+            if (focusLayerRef.current) focusLayerRef.current.clearLayers();
+        }, 5000);
+    }
+  }, [focusLocation]);
 
   // Update Tile Layer based on style
   useEffect(() => {
@@ -78,15 +129,13 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType,
     // Render Segments
     segments.filter(s => selectedType === 'ALL' || s.type === selectedType).forEach(segment => {
       const color = STATUS_COLORS[segment.status];
-      // Note: Coordinates in types are {x, y}. For Leaflet we assume x=Lng, y=Lat (Standard GeoJSON)
-      // OR if the data is lat/lng based: y=Lat, x=Lng
       const startLatLng = [segment.startNode.y, segment.startNode.x];
       const endLatLng = [segment.endNode.y, segment.endNode.x];
 
       const line = L.polyline([startLatLng, endLatLng], {
         color: color,
         weight: 6,
-        opacity: 0.9, // Updated to 90% opacity
+        opacity: 0.9, 
         lineCap: 'round'
       }).addTo(layerGroup);
 
@@ -102,44 +151,80 @@ const NetworkMap: React.FC<NetworkMapProps> = ({ segments, points, selectedType,
       hasData = true;
     });
 
-    // Render Points
+    // Render Points with custom shapes
     points.filter(p => {
       if (selectedType === 'ALL') return true;
-      const isWaterPoint = [PointType.VALVE, PointType.FIRE_HYDRANT, PointType.WATER_HOUSE_CONNECTION].includes(p.type);
+      const isWaterPoint = [PointType.VALVE, PointType.FIRE_HYDRANT, PointType.WATER_HOUSE_CONNECTION, PointType.AIR_VALVE, PointType.WASH_VALVE].includes(p.type);
       return selectedType === NetworkType.WATER ? isWaterPoint : !isWaterPoint;
     }).forEach(point => {
       const color = STATUS_COLORS[point.status];
       const latLng = [point.location.y, point.location.x];
       
-      const marker = L.circleMarker(latLng, {
-        radius: 8,
-        fillColor: color,
-        color: '#fff',
-        weight: 2,
-        opacity: 0.9, // Updated to 90% opacity
-        fillOpacity: 0.9 // Updated to 90% opacity
-      }).addTo(layerGroup);
+      // Determine shape based on type
+      // Square: Manhole, Inspection Chamber, Oil Trap
+      const isSquare = [PointType.MANHOLE, PointType.INSPECTION_CHAMBER, PointType.OIL_TRAP].includes(point.type);
 
-      marker.on('click', (e: any) => {
-        L.DomEvent.stopPropagation(e);
-        onPointClick(point);
-      });
+      if (isSquare) {
+          // Use DivIcon for Square
+          const icon = L.divIcon({
+              className: 'custom-square-marker',
+              html: `<div style="
+                  width: 14px; 
+                  height: 14px; 
+                  background-color: ${color}; 
+                  border: 2px solid white; 
+                  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+              "></div>`,
+              iconSize: [14, 14],
+              iconAnchor: [7, 7]
+          });
+          const marker = L.marker(latLng, { icon }).addTo(layerGroup);
+          marker.on('click', (e: any) => {
+              L.DomEvent.stopPropagation(e);
+              onPointClick(point);
+          });
+          marker.bindTooltip(point.name, { sticky: true, direction: 'top' });
+      } else {
+          // Circle for others
+          const marker = L.circleMarker(latLng, {
+              radius: 8,
+              fillColor: color,
+              color: '#fff',
+              weight: 2,
+              opacity: 0.9,
+              fillOpacity: 0.9
+          }).addTo(layerGroup);
 
-      marker.bindTooltip(point.name, { sticky: true, direction: 'top' });
+          marker.on('click', (e: any) => {
+              L.DomEvent.stopPropagation(e);
+              onPointClick(point);
+          });
+          marker.bindTooltip(point.name, { sticky: true, direction: 'top' });
+      }
 
       bounds.extend(latLng);
       hasData = true;
     });
 
-    if (hasData) {
+    // Only fit bounds if we are NOT focusing on a specific issue
+    if (hasData && !focusLocation) {
       mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
 
-  }, [segments, points, selectedType]);
+  }, [segments, points, selectedType, focusLocation]);
 
   return (
     <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 p-2 w-full overflow-hidden relative h-full flex flex-col">
       
+      {/* CSS Injection for Animation */}
+      <style>{`
+        @keyframes leaflet-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); transform: scale(0.95); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); transform: scale(1); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(0.95); }
+        }
+      `}</style>
+
       <div className="absolute top-6 left-6 z-[400] bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-lg border border-slate-200">
          <h3 className="text-sm font-black text-slate-800">{title || "خريطة الموقع العام"}</h3>
       </div>

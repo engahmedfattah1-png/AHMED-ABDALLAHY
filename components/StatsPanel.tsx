@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { NetworkSegment, NetworkPoint, NetworkType, ProjectStatus } from '../types';
+import { NetworkSegment, NetworkPoint, NetworkType, ProjectStatus, PointType } from '../types';
+import { POINT_LABELS } from '../constants';
 
 interface StatsPanelProps {
   segments: NetworkSegment[];
@@ -16,32 +17,34 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ segments, points, networkType }
   const totalPoints = points.length;
   const executedPoints = points.filter(p => p.status === ProjectStatus.COMPLETED).length;
   const inProgressPoints = points.filter(p => p.status === ProjectStatus.IN_PROGRESS).length;
-  const pendingPoints = points.filter(p => p.status === ProjectStatus.PENDING).length;
+  
+  // Group points by Type
+  const typeCounts = points.reduce((acc, curr) => {
+    const type = curr.type;
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {} as Record<PointType, number>);
+
+  // Sort types by count descending
+  const sortedTypes = Object.entries(typeCounts)
+    .sort(([, a], [, b]) => b - a)
+    .map(([type, count]) => ({ type: type as PointType, count }));
 
   // SVG Configuration
   const radius = 38;
   const circumference = 2 * Math.PI * radius;
-  const strokeWidth = 10; // Increased thickness for better visibility
+  const strokeWidth = 10; 
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
       
-      {/* الكارت الأول: تعداد العناصر الفنية */}
+      {/* الكارت الأول: تصنيف العناصر الفنية */}
       <div className="bg-white rounded-[35px] shadow-sm border border-slate-100 p-7 flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
-        <div className="relative w-28 h-28">
+        <div className="relative w-28 h-28 shrink-0">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 96 96">
-            {/* Background ring (Full Circle) */}
             <circle cx="48" cy="48" r={radius} stroke="#f1f5f9" strokeWidth={strokeWidth} fill="transparent" />
             
-            {/* Pending segment (The base layer for 'unfilled') - handled by background ring mostly, 
-                but we can stack colors. 
-                Strategy: 
-                1. Draw Full Circle Orange (Represents Total Active: InProgress + Executed)
-                2. Draw Full Circle Green (Represents Executed) on top.
-                The rest remains the background color (Pending).
-            */}
-
-            {/* Total Active (In Progress + Executed) -> Orange */}
+            {/* Visualizing Execution Status on the ring still makes sense for "Health" */}
             <circle 
               cx="48" cy="48" r={radius} stroke="#f59e0b" strokeWidth={strokeWidth} fill="transparent" 
               strokeDasharray={circumference} 
@@ -49,8 +52,6 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ segments, points, networkType }
               strokeLinecap="round"
               className="transition-all duration-1000 ease-out"
             />
-
-            {/* Executed -> Green */}
             <circle 
               cx="48" cy="48" r={radius} stroke="#10b981" strokeWidth={strokeWidth} fill="transparent" 
               strokeDasharray={circumference} 
@@ -61,25 +62,29 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ segments, points, networkType }
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-black text-slate-800">{totalPoints}</span>
-            <span className="text-[9px] font-bold text-slate-400">إجمالي</span>
+            <span className="text-[9px] font-bold text-slate-400">عنصر</span>
           </div>
         </div>
 
-        <div className="text-right flex-1 pr-2">
-          <h3 className="text-[11px] font-black text-slate-400 mb-3 uppercase tracking-wider">حالة العناصر</h3>
-          <div className="space-y-2">
-            <div className="flex items-center justify-end gap-2">
-              <span className="text-[10px] font-bold text-slate-600">منفذ ({executedPoints})</span>
-              <div className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></div>
-            </div>
-            <div className="flex items-center justify-end gap-2">
-              <span className="text-[10px] font-bold text-slate-600">جاري ({inProgressPoints})</span>
-              <div className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]"></div>
-            </div>
-            <div className="flex items-center justify-end gap-2">
-              <span className="text-[10px] font-bold text-slate-600">مخطط ({pendingPoints})</span>
-              <div className="w-2.5 h-2.5 rounded-full bg-[#94a3b8]"></div>
-            </div>
+        <div className="text-right flex-1 pr-4 overflow-hidden">
+          <h3 className="text-[11px] font-black text-slate-400 mb-2 uppercase tracking-wider">تصنيف العناصر</h3>
+          <div className="space-y-1.5 max-h-[80px] overflow-y-auto custom-scrollbar pl-1">
+            {sortedTypes.length > 0 ? (
+              sortedTypes.map(({ type, count }) => (
+                <div key={type} className="flex items-center justify-end gap-2">
+                  <span className="text-[10px] font-bold text-slate-600 truncate">
+                    {POINT_LABELS[type] || type} ({count})
+                  </span>
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${
+                    type.includes('MANHOLE') ? 'bg-amber-600' : 
+                    type.includes('VALVE') ? 'bg-blue-600' : 
+                    type.includes('FIRE') ? 'bg-red-500' : 'bg-slate-400'
+                  }`}></div>
+                </div>
+              ))
+            ) : (
+              <span className="text-[10px] text-slate-300">لا توجد عناصر</span>
+            )}
           </div>
         </div>
       </div>
@@ -117,16 +122,14 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ segments, points, networkType }
         </div>
       </div>
 
-      {/* الكارت الثالث: نسبة الإنجاز الكلية (تصميم أبيض بدل الأسود) */}
+      {/* الكارت الثالث: نسبة الإنجاز الكلية */}
       <div className="bg-white rounded-[35px] shadow-sm border border-slate-100 p-7 flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
         {/* Decorative background blur */}
         <div className="absolute -top-10 -left-10 w-32 h-32 bg-blue-50 rounded-full blur-3xl opacity-60"></div>
         
-        <div className="relative w-28 h-28 z-10">
+        <div className="relative w-28 h-28 z-10 shrink-0">
           <svg className="w-full h-full transform -rotate-90 drop-shadow-sm" viewBox="0 0 96 96">
-            {/* Track */}
             <circle cx="48" cy="48" r={radius} stroke="#eff6ff" strokeWidth={strokeWidth} fill="transparent" />
-            {/* Progress */}
             <circle 
               cx="48" cy="48" r={radius} stroke="#3b82f6" strokeWidth={strokeWidth} fill="transparent" 
               strokeDasharray={circumference} 
