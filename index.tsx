@@ -2,24 +2,7 @@ import React, { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-// Service Worker Registration
-if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(() => console.log('Service Worker Registered'))
-      .catch(err => console.log('SW failed', err));
-  });
-}
-
-// Basic Environment Check
-if (window.location.protocol === 'file:') {
-  const warning = document.createElement('div');
-  warning.id = 'file-warning';
-  warning.style.cssText = "position: fixed; top: 0; left: 0; right: 0; background: #f59e0b; color: white; text-align: center; padding: 12px; z-index: 9999; font-weight: bold; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);";
-  warning.innerHTML = '<i class="fas fa-exclamation-triangle ml-2"></i> Warning: Local file protocol detected. Map and AI features may be limited. Please use a local server.';
-  document.body.prepend(warning);
-}
-
+// --- Error Boundary to prevent White Screen of Death ---
 interface ErrorBoundaryProps {
   children?: ReactNode;
 }
@@ -29,39 +12,43 @@ interface ErrorBoundaryState {
   error: any;
 }
 
-// Simple Error Boundary to prevent white screens
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
-    hasError: false,
-    error: null
-  };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
 
   static getDerivedStateFromError(error: any) {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: any, errorInfo: any) {
-    console.error("Uncaught error:", error, errorInfo);
+    console.error("Critical Application Error:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-6 text-center font-sans">
-          <div className="bg-white p-8 rounded-3xl shadow-xl max-w-lg w-full">
-            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <i className="fas fa-bug text-2xl"></i>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-6 text-center font-sans">
+          <div className="bg-slate-800 p-8 rounded-3xl shadow-2xl max-w-lg w-full border border-slate-700">
+            <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <i className="fas fa-bug text-3xl"></i>
             </div>
-            <h2 className="text-xl font-black text-slate-800 mb-2">Something went wrong</h2>
-            <p className="text-sm text-slate-500 font-bold mb-4">The application encountered an unexpected error.</p>
-            <div className="bg-slate-900 text-slate-200 p-4 rounded-xl text-left text-xs font-mono overflow-auto max-h-40 mb-6">
-              {this.state.error?.toString()}
+            <h2 className="text-2xl font-bold mb-2">Application Error</h2>
+            <p className="text-slate-400 mb-6 text-sm">
+              The application encountered a critical error and could not render.
+            </p>
+            <div className="bg-slate-950 p-4 rounded-xl text-left text-xs font-mono text-red-300 overflow-auto max-h-40 mb-6 border border-slate-900">
+              {this.state.error?.toString() || "Unknown Error"}
             </div>
             <button 
-              onClick={() => window.location.reload()}
-              className="bg-blue-600 text-white px-6 py-3 rounded-xl font-black text-sm hover:bg-blue-700 transition-colors w-full"
+              onClick={() => {
+                localStorage.clear(); // Safe clear to recover from bad state
+                window.location.reload();
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20"
             >
-              Reload Application
+              Reset & Reload
             </button>
           </div>
         </div>
@@ -72,20 +59,23 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-// Ensure the root container exists
-let rootContainer = document.getElementById('root');
-if (!rootContainer) {
-  rootContainer = document.createElement('div');
-  rootContainer.id = 'root';
-  document.body.appendChild(rootContainer);
+// --- Environment Safety Check ---
+if (window.location.protocol === 'file:') {
+  console.warn("Running via file:// protocol. Some features (Maps, APIs) may be restricted.");
 }
 
-// Mount the React application
-const root = createRoot(rootContainer!);
-root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+// --- Application Mount ---
+const container = document.getElementById('root');
+
+if (container) {
+  const root = createRoot(container);
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+} else {
+  console.error("Failed to find the root element. Application cannot mount.");
+}

@@ -1,4 +1,3 @@
-
 import { NetworkSegment, NetworkType, ProjectStatus, NetworkPoint, PointType, Project } from './types';
 
 export const STATUS_COLORS = {
@@ -15,7 +14,7 @@ const movePoint = (start: {x: number, y: number}, dxMeters: number, dyMeters: nu
     return { x: start.x + lonChange, y: start.y + latChange };
 }
 
-// 1. Manar Project - Jeddah
+// Helper to create a water loop
 const createWaterLoop = (pid: string, startLat: number, startLon: number): { segments: NetworkSegment[], points: NetworkPoint[] } => {
   const segments: NetworkSegment[] = [];
   const points: NetworkPoint[] = [];
@@ -59,6 +58,7 @@ const createWaterLoop = (pid: string, startLat: number, startLon: number): { seg
   return { segments, points };
 };
 
+// Helper to create a sewage tree
 const createSewageTree = (pid: string, startLat: number, startLon: number, direction: 'NORTH' | 'EAST'): { segments: NetworkSegment[], points: NetworkPoint[] } => {
   const segments: NetworkSegment[] = [];
   const points: NetworkPoint[] = [];
@@ -113,6 +113,8 @@ const createLogisticNetwork = (pid: string, startLat: number, startLon: number):
 }
 
 // --- DEFINING PROJECTS ---
+
+// 1. Manar Project - Jeddah
 const manarWater = createWaterLoop('MNR', 21.6030, 39.2300);
 const manarSewage = createSewageTree('MNR', 21.6040, 39.2310, 'EAST');
 
@@ -125,6 +127,7 @@ const projectManar: Project = {
   points: [...manarWater.points, ...manarSewage.points]
 };
 
+// 2. Logistic Hub
 const logisticNet = createLogisticNetwork('LOG', 21.4300, 39.2300);
 const projectLogistic: Project = {
   id: 'PRJ-JED-LOG',
@@ -135,6 +138,7 @@ const projectLogistic: Project = {
   points: logisticNet.points
 };
 
+// 3. Abu Farea
 const far3Sewage1 = createSewageTree('FR3-A', 21.2700, 40.4100, 'NORTH');
 const far3Sewage2 = createSewageTree('FR3-B', 21.2700, 40.4120, 'NORTH');
 const projectAbuFarea: Project = {
@@ -146,7 +150,22 @@ const projectAbuFarea: Project = {
   points: [...far3Sewage1.points, ...far3Sewage2.points]
 };
 
+// 4. Al Fanar Scheme (مخطط الفنار) - NEW
+// Located in North Jeddah (Obhur area approximately)
+const fanarWater = createWaterLoop('FNR', 21.7600, 39.1300); 
+const fanarSewage = createSewageTree('FNR', 21.7610, 39.1310, 'NORTH');
+
+const projectFanar: Project = {
+  id: 'PRJ-JED-FNR',
+  name: 'Al Fanar Scheme (مخطط الفنار)',
+  locationName: 'Jeddah - Al Fanar',
+  lastUpdated: new Date().toISOString().split('T')[0],
+  segments: [...fanarWater.segments, ...fanarSewage.segments],
+  points: [...fanarWater.points, ...fanarSewage.points]
+};
+
 export const MOCK_PROJECTS: Project[] = [
+  projectFanar, // Display first as requested
   projectManar,
   projectLogistic,
   projectAbuFarea

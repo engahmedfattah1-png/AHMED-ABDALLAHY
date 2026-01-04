@@ -2,14 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 import { NetworkSegment } from "../types";
 
 export const getProjectInsights = async (segments: NetworkSegment[]) => {
-  // Safer API Key initialization
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey.length === 0) {
-    console.warn("Gemini API Key is missing in environment variables.");
-    return "خدمة التحليل الذكي غير متوفرة حالياً (مفتاح API غير مضبوط).";
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  // Use process.env.API_KEY directly as per guidelines.
+  // Assume it is pre-configured and valid.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const dataSummary = segments.map(s => ({
     name: s.name,
