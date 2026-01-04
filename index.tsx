@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
@@ -20,12 +20,21 @@ if (window.location.protocol === 'file:') {
   document.body.prepend(warning);
 }
 
+interface ErrorBoundaryProps {
+  children?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: any;
+}
+
 // Simple Error Boundary to prevent white screens
-class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null
+  };
 
   static getDerivedStateFromError(error: any) {
     return { hasError: true, error };
@@ -72,7 +81,7 @@ if (!rootContainer) {
 }
 
 // Mount the React application
-const root = createRoot(rootContainer);
+const root = createRoot(rootContainer!);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>

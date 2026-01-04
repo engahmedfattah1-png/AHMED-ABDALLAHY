@@ -7,9 +7,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     base: './',
     define: {
-      // Prevents "process is not defined" error in browser
+      // Robust definition for process.env to avoid "process is not defined" crashes
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
-      'process.env.NODE_ENV': JSON.stringify(mode)
+      'process.env.NODE_ENV': JSON.stringify(mode),
+      'process.env': JSON.stringify({}) // Safe empty object fallback
     },
     build: {
       outDir: 'dist',

@@ -28,6 +28,8 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported, defaultNetworkTyp
 
   // --- Enhanced Fuzzy Get Value ---
   const getFuzzyValue = (row: any, candidates: string[]): any => {
+    if (!row || typeof row !== 'object') return undefined;
+    
     const rowKeys = Object.keys(row);
     // Prepare normalized map: Remove special chars, spaces, lowercase
     const normalizedMap: Record<string, string> = {};
@@ -52,7 +54,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported, defaultNetworkTyp
     startX: ['StartLon', 'Start Longitude', 'StartX', 'X1', 'Lon1', 'Start_Lon', 'Start Lon', 'Start Easting', 'Start_E', 'S_X', 'X_Start', 'East_S', 'X Start'],
     startY: ['StartLat', 'Start Latitude', 'StartY', 'Y1', 'Lat1', 'Start_Lat', 'Start Lat', 'Start Northing', 'Start_N', 'S_Y', 'Y_Start', 'North_S', 'Y Start'],
     endX: ['EndLon', 'End Longitude', 'EndX', 'X2', 'Lon2', 'End_Lon', 'End Lon', 'End Easting', 'End_E', 'E_X', 'X_End', 'East_E', 'X End'],
-    endY: ['EndLat', 'End Latitude', 'EndY', 'Y2', 'Lat2', 'End_Lat', 'End Lat', 'End Northing', 'End_N', 'E_Y', 'Y_End', 'North_E', 'Y End'],
+    endY: ['EndLat', 'End Latitude', 'EndY', 'Y2', 'Lat2', 'End_Lat', 'End Northing', 'End_N', 'E_Y', 'Y_End', 'North_E', 'Y End'],
     pointX: ['Lon', 'Longitude', 'X', 'Easting', 'E', 'X_Coord', 'East', 'CoordinateX'],
     pointY: ['Lat', 'Latitude', 'Y', 'Northing', 'N', 'Y_Coord', 'North', 'CoordinateY'],
     type: ['Type', 'Network', 'Service', 'Class', 'Category', 'Material', 'Layer', 'Utility', 'System'],
@@ -183,7 +185,7 @@ const ImportPanel: React.FC<ImportPanelProps> = ({ onImported, defaultNetworkTyp
                  finalType = NetworkType.WATER;
              }
           } else {
-             finalType = defaultNetworkType;
+             finalType = defaultNetworkType as NetworkType;
           }
 
           return {
